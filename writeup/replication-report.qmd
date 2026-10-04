@@ -75,11 +75,10 @@ original_p_loss <- original$risky[original$condition == "loss"] / original$n[ori
 ::: {.callout-note appearance="simple" icon=false}
 ## Project links
 
-- **Original paper:** Tversky, A., & Kahneman, D. (1981). The framing of decisions and the
-  psychology of choice. *Science, 211*(4481), 453–458. <https://doi.org/10.1126/science.7455683>
+- **Original paper:** Leahy, Keelin, et al. "Design fixation from initial examples: Provided versus self-generated ideas." Journal of Mechanical Design 142.10 (2020): 101402. <https://doi.org/10.1115/1.4046446>
 - **Preregistration:** [OSF registration](https://osf.io/XXXXX) *(registered YYYY-MM-DD, before final data collection)*
 - **Live experiment:** <https://psych251.github.io/your-repo/> (take the study exactly as participants did)
-- **Repository:** <https://github.com/psych251/your-repo> (experiment code, data, and this report)
+- **Repository:** <https://github.com/psych251/leahy2020> (experiment code, data, and this report)
 :::
 
 # AI use statement
