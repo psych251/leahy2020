@@ -376,48 +376,51 @@ Because of resource constraints, I did not follow a power analysis and instead r
 
 I recruited 36 participants who are preselected on Prolific to be students studying engineering. My stopping rule is to collect until 36 participants pass the exclusion
 criteria below:
+
 - Participant has at least one non-empty concept sheet.
 - Participant has at least one non-"illegible or uninterpretable" concept sheet (needs to be maunally checked by me).
 - Participant has a non-empty inital concept sheet (if they are in the control group).
 
 ### Materials
 
-1. Design problems
+#### 2. Design problems
 
 Design problems were intially presented to the participants in text form. The texts used for these problems were quoted verbatim from the original experiment.
 
 - **No-spill cup:** "Design a disposable, spill-proof coffee cup. The design should be operable with one hand, durable and should not include a mouthpiece or straw."
 - **Bike rack:** "Design a car-mounted bicycle rack that addresses the following needs: (1) Easy mounting of the bicycle, (2) Easy mounting of the rack, (3) Cannot harm bike or car, and (4) Must be versatile for all bikes and cars."
 
-1. Example designs with flaw descriptions
+#### 3. Example designs with flaw descriptions
 Sketches of the inital designs for the no-spill cup and bike rack were presented to the participants along with the above design descriptions in the experimental conditions. These images were copied directly from the paper and presented to the participants are screenshots. Because they are reproductions from the paper, they may be lowere quality than the originals.
 
 Similarly, the flaw descriptions that go along with these images were quoted from the paper as well:
+
 - **No-spill cup:** "Below is an example of a spill proof coffee cup. Please note, the straw will leak when the cup is rotated 90 deg from the angle shown. The cup will leak if squeezed and the hot liquid emerging from the straw will burn one's mouth."
+
 - **Bike rack:** "Below is an example of a present day bike rack. The bicycle is set in the rails and the vinyl coated hook is attached to the seat tube of the bike, and then the hook is tightened down by hand with a wing nut. One should note the difficulty of mounting the middle bikes on the rack."
 
-1. Concept sheets
+#### 4. Concept sheets
 
 Concept sheets were provided to the participants during brainstorming. In the original experiment, these sheets had an area for the participant to sketch their idea, then an area to describe their design with the prompt "Describe the concept in detail. How does it work? What are the unique features, mechanisms, and details?" I had adapted this sheet to an online format, where the participant has a drawing box with a pen and undo button, along with a text box for them to describe their design with the same prompt. 
 
-1. Instructional content
+#### 5. Instructional content
 
 Several phases of this study required teaching best practices to the pariticipants. The requried materials for these sections are described below.
 
 - **Introduction to idea generation:** The paper does not give an exact description of how introduces idea generation, so I have summarized based on the paper's description of the content covered.
 - **Introduction to individual brainstorming:** This section is provided verbatim in the paper, so I have quoted it exactly in the replication:
 
-"Brainstorming is a method for generating ideas. When brainstorming on your own:
-
-1. Postpone and withhold your judgment of ideas.
-2. Encourage wild and exaggerated ideas.
-3. Quantity counts at this stage, not quality.
-4. Build consecutively on your ideas.
-5. Every idea has equal worth."
+> "Brainstorming is a method for generating ideas. When brainstorming on your own:
+> 
+> 1. Postpone and withhold your judgment of ideas.
+> 2. Encourage wild and exaggerated ideas.
+> 3. Quantity counts at this stage, not quality.
+> 4. Build consecutively on your ideas.
+> 5. Every idea has equal worth."
 
 - **Practice brainstorming:** The practice problem provided to participants in this section is included in the paper, so I have copied it verbatim as well: "design a seating device."
 
-1. Coding materials
+#### 6. Coding materials
 
 After the experiemnt, the participants design ideas were coded on their level of fixation by independent coders. According to the paper, coders were blind to condition ans asked to consider "overall similarity to the initial concept in the set" as similar or not similar. We use to exact save wording.
 
