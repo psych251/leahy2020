@@ -427,40 +427,25 @@ After the experiemnt, the participants design ideas were coded on their level of
 Note I do not know exactly how I will perform coding at this point. Either I will do it myself or perhaps recruit collegues to help out. 
 
 
-::: {.callout-tip icon=false}
-## Guidance
-
-All materials. You can quote the original article directly: put the text in quotation marks
-and note that it was followed precisely, or quote it and point out the exceptions. Link to the
-live experiment above rather than pasting screenshots of every screen.
-:::
-
 ### Procedure
-
-::: {.callout-tip icon=false}
-## Guidance
-
-As for Materials: quote the original where you can and point out the exceptions. Describe the
-sequence a participant experiences, from consent to debrief, and how long it takes.
-:::
 
 The total time for this study is approximately **40 minutes**.
 
 #### 1. Consent
 
-**time:** 30 seconds
+**Time:** 30 seconds
 
 The course-provided consent message is presented to the participant. They had the option to consent or not consent. If they chose not to consent, they did not have the option to continue with the study.
 
 #### 2. Welcome
 
-**time:** 30 seconds
+**Time:** 30 seconds
 
 Participants were presented with a welcome message and short description of the study. This was not part of the original study design, but was added in order to provide participants with context.
 
 #### 3. Design problem and initial example
 
-**time:** 3 minutes
+**Time:** 3 minutes
 
 From the original paper:
 
@@ -470,7 +455,7 @@ I followed this exact description, except using a written format rather than ver
 
 #### 4. Introduction to idea generation
 
-**time:** 2 minutes
+**Time:** 2 minutes
 
 From the original paper:
 
@@ -480,7 +465,7 @@ I follow this exact description, except the exact introduction is not included, 
 
 #### 5. Introduction to brainstorming
 
-**time:** 2 minutes
+**Time:** 2 minutes
 
 From the original paper:
 
@@ -490,7 +475,7 @@ I follow this exact description and used the same wording as in the original exp
 
 #### 6. Brainstorming practice
 
-**time:** 2 minutes
+**Time:** 2 minutes
 
 From the original paper:
 
@@ -500,7 +485,7 @@ Again the time allotted to this section is shortened and converted to an online 
 
 #### 7. Brainstorming
 
-**time:** 25 minutes
+**Time:** 25 minutes
 
 From the original paper:
 
@@ -510,7 +495,7 @@ Again the time allotted to this section is shortened and converted to an online 
 
 #### 8. Debrief
 
-**time:** 30 seconds
+**Time:** 30 seconds
 
 Participants were presented with a thank you message. This was not part of the original study design, but was added in order to provide participants with context.
 
@@ -528,15 +513,37 @@ stands or falls on, and it must match your preregistration. You can pre-specify 
 analyses here too.
 :::
 
-**Key analysis of interest.** The proportion of participants choosing the risky program is
-higher in the loss frame than in the gain frame, tested with a chi-square test of independence
-on the 2 × 2 table of frame by choice. The effect size is the difference in the proportion
-choosing the risky program (loss minus gain), with a 95% confidence interval.
+**Key analysis of interest.** In order to compare the  control group (self-generated inital example), to the experimental group, I use a 2x2 ANOVA across these two conditions and the two design problems. This is the exact measure taken in the original experiment:
 
-**Exclusions.** Participants are excluded if they did not complete the study, if they answered
-no speeded trial at all (every lexical-decision trial timed out, the signature of a device
-without a keyboard), or if they answered fewer than 6 of the 8 lexical-decision trials
-correctly.
+> "a 2 × 2 ANOVA with problem and fixation source as between group variables, and the ratio of similar concepts to total number of concepts per student… as the dependent measure."
+
+**Exclusions.** The original study excluded participants via the following criteria:
+
+> "failed to follow instructions or the completed concepts were illegible or uninterpretable"
+
+I expanded this explustion criteria to exclude:
+- Participants who didn't complete the study.
+- Pariticpants with no non-empty brainstorming concept sheets.
+- Control participants with an empty initial concept sheet (in this case there is nothing to compare to).
+
+**Data cleaning.**
+
+Empty concept sheets will be dropped from the analysis. This matches the original experiment, where only filled-out sheets were inspected during analysis.
+
+**Data coding.**
+
+This experiment has the added task of coding the results of participants' brainstormed concepts on how similar they were to the intial example. In the original experiment 
+
+> "Two independent coders… rated the overall similarity of each generated concept to that student's initial concept (either provided or self-generated)."
+
+They were given the following instructions:
+
+> "The coders were instructed to provide a holistic rating for every concept in the set based on its 'overall similarity to the initial concept in the set.'"
+Ratings were "similar" or "not similar".
+
+These coders were blind to the study hypothesis and concepts were presented in a random order. 
+
+In order to preserve resources, I have coded the concept sheets myself, blind to condition.
 
 ### Differences from the original study
 
