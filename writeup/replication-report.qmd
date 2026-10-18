@@ -531,16 +531,6 @@ In order to preserve resources, I have coded the concept sheets myself, blind to
 
 ### Differences from the original study
 
-::: {.callout-tip icon=false}
-## Guidance
-
-Every known difference in sample, setting, procedure, materials, and analysis, one per row.
-Minimizing differences is the goal, but some always remain. For each one, say whether it is
-expected to matter, based on claims in the original article or later research on when the
-effect does and does not appear. The rows below are the demo's real differences and show the
-level of detail expected; replace them with yours.
-:::
-
 | Aspect | Original study | This replication | Expected to matter? |
 |---|---|---|---|
 | Sample | 185 incoming engineering students, aged 17–18, not paid; 166 analysed. | Students studying engineering on Prolific. | Possibly. Prolific participants may include fewer design novices (not controlled for age), which could potentially lead to less design fixation |
