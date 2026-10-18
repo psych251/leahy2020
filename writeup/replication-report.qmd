@@ -444,6 +444,76 @@ As for Materials: quote the original where you can and point out the exceptions.
 sequence a participant experiences, from consent to debrief, and how long it takes.
 :::
 
+The total time for this study is approximately **40 minutes**.
+
+#### 1. Consent
+
+**time:** 30 seconds
+
+The course-provided consent message is presented to the participant. They had the option to consent or not consent. If they chose not to consent, they did not have the option to continue with the study.
+
+#### 2. Welcome
+
+**time:** 30 seconds
+
+Participants were presented with a welcome message and short description of the study. This was not part of the original study design, but was added in order to provide participants with context.
+
+#### 3. Design problem and initial example
+
+**time:** 3 minutes
+
+From the original paper:
+
+> "students were introduced to the presented problem. Then, students saw either a provided example concept or they generated their own initial concept on a colored concept sheet for the same time period (6 min)."
+
+I followed this exact description, except using a written format rather than verbal instruction. I also shortened the amount of time allotted to this task in order to preserve resources. 
+
+#### 4. Introduction to idea generation
+
+**time:** 2 minutes
+
+From the original paper:
+
+> "a short (3 min) introduction to idea generation, including a definition of divergent thinking and the goal of creating multiple, diverse concepts…"; "The instructors did not mention fixation"
+
+I follow this exact description, except the exact introduction is not included, so I create one based on the provided description. I again shortened the amount of time allotted to this task in order to preserve resources. 
+
+#### 5. Introduction to brainstorming
+
+**time:** 2 minutes
+
+From the original paper:
+
+> "A short (3 min) introduction to brainstorming… modified for an individual designer"
+
+I follow this exact description and used the same wording as in the original experiment. But I again shortened the amount of time for this section.
+
+#### 6. Brainstorming practice
+
+**time:** 2 minutes
+
+From the original paper:
+
+> "Students practiced this idea generation method on a practice problem ('design a seating device') for 3 min."
+
+Again the time allotted to this section is shortened and converted to an online format, but otherwise they follow the same procedure as in the original experiment.
+
+#### 7. Brainstorming
+
+**time:** 25 minutes
+
+From the original paper:
+
+> "students were asked to create concepts for their assigned design problem using individual brainstorming for 30 min. Students were free to follow the Individual Brainstorming method presented or to use another method (such as natural ideation)."
+
+Again the time allotted to this section is shortened and converted to an online format, but otherwise they follow the same procedure as in the original experiment.
+
+#### 8. Debrief
+
+**time:** 30 seconds
+
+Participants were presented with a thank you message. This was not part of the original study design, but was added in order to provide participants with context.
+
 ### Analysis plan
 
 ::: {.callout-tip icon=false}
