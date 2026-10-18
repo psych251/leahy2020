@@ -426,7 +426,6 @@ After the experiemnt, the participants design ideas were coded on their level of
 
 Note I do not know exactly how I will perform coding at this point. Either I will do it myself or perhaps recruit collegues to help out. 
 
-
 ### Procedure
 
 The total time for this study is approximately **40 minutes**.
@@ -501,18 +500,6 @@ Participants were presented with a thank you message. This was not part of the o
 
 ### Analysis plan
 
-::: {.callout-tip icon=false}
-## Guidance
-
-The analysis strategy, as close to the original as possible: data cleaning rules, exclusion
-rules, covariates, and the model or test. Original papers often do not spell this out; say
-where you had to make a choice and what you chose.
-
-**State the key analysis of interest explicitly.** That is the single test your replication
-stands or falls on, and it must match your preregistration. You can pre-specify additional
-analyses here too.
-:::
-
 **Key analysis of interest.** In order to compare the  control group (self-generated inital example), to the experimental group, I use a 2x2 ANOVA across these two conditions and the two design problems. This is the exact measure taken in the original experiment:
 
 > "a 2 × 2 ANOVA with problem and fixation source as between group variables, and the ratio of similar concepts to total number of concepts per student… as the dependent measure."
@@ -556,12 +543,15 @@ level of detail expected; replace them with yours.
 
 | Aspect | Original study | This replication | Expected to matter? |
 |---|---|---|---|
-| Sample | University students in Stanford and British Columbia classrooms | Adults recruited on Prolific | Possibly. Framing effects have been found in both student and general samples, but their size varies across populations. |
-| Setting | Paper questionnaire in class | Online, unsupervised, on the participant's own computer | Unlikely for a single vignette, though attention may be lower online. |
-| Wording | "an unusual Asian disease" | "an unusual disease" | Unlikely. The ethnonym is incidental to the manipulation and dated. |
-| Design | Between subjects: each participant saw one frame | Between subjects, randomly assigned | No. |
-| Response | Circle a program on paper | Click a button | Unlikely. |
-| Other tasks | Problems presented alongside other questionnaire items | Followed by a short lexical-decision task used as an attention check | Unlikely: the check comes after the choice. |
+| Sample | 185 incoming engineering students, aged 17–18, not paid; 166 analysed. | Students studying engineering on Prolific. | Possibly. Prolific participants may include fewer design novices (not controlled for age), which could potentially lead to less design fixation |
+| Sample size | 166 analysed. | 36 participants. | Yes. This experiemnt is very low-powered and therefore not reliable. |
+| Setting | In person at a workshop, within rooms with 2 trained proctors | Online, unsupervised, on the participant's own computer. | Attention and distractions may lead to lower quality results. |
+| Medium | Paper sheets with descriptions and sections to fill out. | Typed descriptions, and mouse and trackpad skatches. | Drawing with the mouse may have more friction than drawing on paper. | 
+| Instruction delivery | Short lessons given by the two proctors. | Self-paced test screens. | This may effect whether the instructions are fully understood by participants (i.e. there's no way for them to ask questions). |
+| Phase timings | Everyone is given 6 / 3 / 3 / 3 / 30 min for each of the original experiment sections. |  / 2 / 2 / 3 / 25 min maximums per original section; participants can move on early if they'd like. | Yes. I have shortened their expose to the inital example and given them less time to digest and understand all tasks. |
+| Revisiting sheets | Not stated if the participants can revisit their concept sheets. | Any sheet can be edited at any time. | Maybe a small effect if people can go back an differentiate earlier concepts. |
+| Access to the initial concept during brainstorming | Not stated if the users have access to the initial example during brainstorming. | Not visible after it is intially shown to pariticpants. | Yes. If the participant can continuously look at their intial exaample, they may fixate more. |
+| Coding | Coding	Two coders (a senior undergraduate and a master's student), third coder for disagreements. | Potentially just me, unless I can get help. | Yes, I may be unreliable because I am not blind to the experiment's hypothesis. |
 
 ### Methods addendum (post data collection)
 
