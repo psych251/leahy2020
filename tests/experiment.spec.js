@@ -14,39 +14,91 @@ const { test, expect, devices } = require("@playwright/test");
 
 const EMULATOR = process.env.EMULATOR === "1" || !!process.env.FIRESTORE_EMULATOR_HOST;
 const PROJECT = "demo-psych251";
-const EXPERIMENT_ID = "framing-demo";
+const EXPERIMENT_ID = "leahy2020-pilot-a";
 const FS = `http://localhost:8080/v1/projects/${PROJECT}/databases/(default)/documents`;
 
-async function runThroughExperiment(page) {
+// Draw one stroke across the sketch box of the current concept sheet.
+async function sketch(page) {
+  const canvas = page.locator("#concept-canvas");
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await canvas.boundingBox();
+  await page.mouse.move(box.x + 40, box.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 120, box.y + 90, { steps: 5 });
+  await page.mouse.move(box.x + 200, box.y + 60, { steps: 5 });
+  await page.mouse.up();
+}
+
+// Finish a concept phase early: the finish button asks for a second click to confirm.
+async function finishPhase(page) {
+  await page.locator("#concept-finish").click();
+  await page.locator("#concept-finish").click();
+}
+
+// Moving to another sheet (a new one, or one picked from the "Go to" list) must not move the
+// progress bar: only finishing a phase does.
+async function switchSheet(page, action, n) {
+  const bar = page.locator("#jspsych-progressbar-inner");
+  const before = await bar.evaluate((el) => el.style.width);
+  await action();
+  await page.locator(`.concept-sheet[data-sheet="${n}"]`).waitFor();
+  expect(await bar.evaluate((el) => el.style.width)).toBe(before);
+}
+const nextSheet = (page, n) =>
+  switchSheet(page, () => page.getByRole("button", { name: "Save and start a new concept" }).click(), n);
+const goToSheet = (page, n) =>
+  switchSheet(page, () => page.locator("#concept-goto").selectOption(String(n)), n);
+
+async function runThroughExperiment(page, { stopBeforeFinish = false } = {}) {
   // 1. consent
   await page.getByRole("button", { name: "I agree to participate" }).click();
-  // 2. instructions (two pages)
+  // 2. welcome (two pages)
   await page.locator("#jspsych-instructions-next").click();
   await page.locator("#jspsych-instructions-next").click();
-  // 3. demographics (SurveyJS)
-  await page.locator('input[type="number"]').fill("34");
-  await page.getByText("Woman", { exact: true }).click();
-  // SurveyJS boolean switches render "Yes" twice once toggled; scope to the question.
-  await page.locator('[data-name="native_english"]').getByText("Yes", { exact: true }).first().click();
-  await page.locator('input[value="Continue"]').click();
-  // 4. framing
-  await page.getByRole("button", { name: "Program A" }).click();
-  // 5. lexical decision: one instructions page, then 8 trials
-  await page.locator("#jspsych-instructions-next").click();
-  for (let i = 0; i < 8; i++) {
-    const stim = page.locator(".stimulus");
-    await stim.waitFor({ state: "visible" });
-    const word = (await stim.textContent()).trim();
-    const realWords = ["TABLE", "GARDEN", "PLANET", "SILVER"];
-    await page.keyboard.press(realWords.includes(word) ? "f" : "j");
-    await stim.waitFor({ state: "detached" });
+  // 3. initial phase: the example (example condition) or an initial concept sheet (control)
+  await page.locator(".example-sketch, #concept-canvas").first().waitFor();
+  if (await page.locator(".example-sketch").count()) {
+    await page.getByRole("button", { name: "Continue" }).click();
+  } else {
+    await sketch(page);
+    await page.locator("#concept-description").fill("Robot initial cup: a lid that seals with a twist.");
+    await finishPhase(page);
   }
-  // 6. feedback
-  await page.locator('input[name="Q0"][value="4"]').check();
-  await page.locator("#jspsych-survey-likert-next").click();
-  await page.locator("textarea").fill("Robot participant says hi.");
-  await page.locator("#jspsych-survey-text-next").click();
-  // 7. debrief
+  // 4-5. introductions to idea generation and brainstorming
+  await page.getByRole("heading", { name: "Idea generation" }).waitFor();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("heading", { name: "Individual brainstorming" }).waitFor();
+  await page.getByRole("button", { name: "Continue" }).click();
+  // 6. practice: two sheets, after checking that an empty sheet cannot be saved
+  await page.locator('.concept-sheet[data-sheet="1"]').waitFor();
+  await page.getByRole("button", { name: "Save and start a new concept" }).click();
+  await expect(page.locator("#concept-message")).toContainText("before starting a new one");
+  await sketch(page);
+  await nextSheet(page, 2);
+  await page.locator("#concept-description").fill("A beanbag.");
+  await finishPhase(page);
+  // 7. brainstorm: instructions page, then two sheets
+  await page.locator("#jspsych-instructions-next").click();
+  await page.locator('.concept-sheet[data-sheet="1"]').waitFor();
+  await sketch(page);
+  await page.locator("#concept-description").fill("Robot concept 1: weighted base.");
+  await nextSheet(page, 2);
+  await page.locator("#concept-description").fill("Robot concept 2: gel that thickens when tipped.");
+  // The list holds every concept, the current one selected; go back and edit concept 1, whose
+  // sketch and description are restored.
+  await expect(page.locator("#concept-goto option")).toHaveText(["Concept 1", "Concept 2 (this sheet)"]);
+  await expect(page.locator("#concept-goto")).toHaveValue("2");
+  await goToSheet(page, 1);
+  await expect(page.locator("#concept-description")).toHaveValue("Robot concept 1: weighted base.");
+  await page.locator("#concept-description").fill("Robot concept 1: weighted base. Edited.");
+  await goToSheet(page, 2);
+  await expect(page.locator("#concept-description")).toHaveValue("Robot concept 2: gel that thickens when tipped.");
+  await finishPhase(page);
+  // 8. debrief: every step but the debrief itself is done
+  await page.getByRole("heading", { name: "Debrief" }).waitFor();
+  const width = await page.locator("#jspsych-progressbar-inner").evaluate((el) => parseFloat(el.style.width));
+  expect(width).toBeCloseTo((8 / 9) * 100, 0);
+  if (stopBeforeFinish) return;
   await page.getByRole("button", { name: "Finish" }).click();
   await expect(page.getByText("All done")).toBeVisible({ timeout: 30000 });
 }
@@ -109,9 +161,10 @@ test.describe("experiment", () => {
     expect(p.status).toBe(200);
     const pdoc = decodeFields(p.body.fields);
     expect(pdoc.completed).toBe(true);
-    expect(["gain", "loss"]).toContain(pdoc.condition);
+    expect(["example", "control"]).toContain(pdoc.condition);
+    expect(["cup", "bike"]).toContain(pdoc.problem);
     expect(pdoc.prolific_pid).toBe("robot123");
-    expect(pdoc.n_trials).toBeGreaterThan(10);
+    expect(pdoc.n_trials).toBeGreaterThanOrEqual(10);
     expect(typeof pdoc.full_data).toBe("string");
     const full = JSON.parse(pdoc.full_data);
     expect(full.length).toBe(pdoc.n_trials);
@@ -122,14 +175,36 @@ test.describe("experiment", () => {
     const docs = (chunks.body.documents || []).map((d) => decodeFields(d.fields));
     expect(docs.length).toBe(pdoc.n_trials);
     const trials = docs.flatMap((d) => d.trials);
-    const framing = trials.find((t) => t.task === "framing");
-    expect(framing.choice).toBe("certain");
-    expect(framing.condition).toBe(pdoc.condition);
-    const ld = trials.filter((t) => t.task === "lexical_decision");
-    expect(ld.length).toBe(8);
-    expect(ld.every((t) => t.correct === true)).toBe(true);
-    const demo = trials.find((t) => t.task === "demographics");
-    expect(demo.response.age).toBe(34);
+    const sheets = trials.filter((t) => t.task === "concept_sheet");
+    // Brainstorm visits in order: 1 -> new 2 -> go to 1 -> go to 2 -> finish.
+    const brainstorm = sheets.filter((t) => t.phase === "brainstorm").sort((a, b) => a.trial_index - b.trial_index);
+    expect(brainstorm.map((t) => [t.sheet_number, t.revision, t.end_reason])).toEqual([
+      [1, 1, "new_sheet"], [2, 1, "go_to"], [1, 2, "go_to"], [2, 2, "finished"],
+    ]);
+    expect(brainstorm.map((t) => t.go_to)).toEqual([null, 1, 2, null]);
+    expect(brainstorm.map((t) => t.changed)).toEqual([true, true, true, false]);
+    // Final version of each sheet = its highest revision.
+    const final = {};
+    for (const t of brainstorm) if (!final[t.sheet_number] || t.revision > final[t.sheet_number].revision) final[t.sheet_number] = t;
+    expect(final[1].description).toBe("Robot concept 1: weighted base. Edited.");
+    expect(final[1].n_strokes).toBe(1);                          // sketch restored on revisit
+    expect(final[1].sketch).toMatch(/^data:image\/png;base64,/);
+    expect(final[2].sketch).toBeNull();
+    expect(final[2].description).toContain("Robot concept 2");
+    expect(brainstorm.every((t) => t.empty === false && t.condition === pdoc.condition && t.problem === pdoc.problem)).toBe(true);
+    expect(sheets.filter((t) => t.phase === "practice").length).toBe(2);
+    if (pdoc.condition === "control") {
+      const initial = sheets.filter((t) => t.phase === "initial");
+      expect(initial.length).toBe(1);
+      expect(initial[0].n_strokes).toBe(1);
+      expect(trials.some((t) => t.task === "example_view")).toBe(false);
+    } else {
+      expect(trials.find((t) => t.task === "example_view").end_reason).toBe("finished");
+      expect(sheets.some((t) => t.phase === "initial")).toBe(false);
+    }
+    for (const task of ["intro_idea_generation", "intro_brainstorming"]) {
+      expect(trials.find((t) => t.task === task).end_reason).toBe("finished");
+    }
 
     // Every trial row must carry the same participant id as its participant document,
     // otherwise trials.csv and participants.csv cannot be joined in the analysis.
@@ -138,16 +213,58 @@ test.describe("experiment", () => {
 
   test("chunked writes (chunk_size > 1) save every trial", async ({ page }) => {
     test.skip(!EMULATOR, "needs the Firestore emulator");
-    await page.goto("/?emulator=1&chunk_size=5");
+    // Forces example + bike rack; the next test forces control + cup, so both levels of both
+    // factors are exercised whatever the random assignment does elsewhere.
+    await page.goto("/?emulator=1&chunk_size=5&condition=example&problem=bike");
     await page.waitForFunction(() => window.__saver && window.__saver.uid);
     await runThroughExperiment(page);
     const uid = await page.evaluate(() => window.__saver.docId);
     const p = decodeFields((await fsGet(`experiments/${EXPERIMENT_ID}/participants/${uid}`)).body.fields);
     const chunks = await fsGet(`experiments/${EXPERIMENT_ID}/participants/${uid}/trials?pageSize=500`);
     const docs = (chunks.body.documents || []).map((d) => decodeFields(d.fields));
+    expect([p.condition, p.problem]).toEqual(["example", "bike"]);
     expect(docs.length).toBe(Math.ceil(p.n_trials / 5));
     const indices = docs.flatMap((d) => d.trials).map((t) => t.trial_index).sort((a, b) => a - b);
     expect(indices).toEqual([...Array(p.n_trials).keys()]);
+  });
+
+  test("phases end by themselves when time runs out, saving the sheet in progress", async ({ page }) => {
+    test.skip(!EMULATOR, "needs the Firestore emulator");
+    // time_scale shrinks every phase: 2-3 min -> under 1 s, 25 min -> ~4.5 s.
+    await page.goto("/?emulator=1&condition=control&problem=cup&time_scale=0.003");
+    await page.waitForFunction(() => window.__saver && window.__saver.docId);
+    await page.getByRole("button", { name: "I agree to participate" }).click();
+    await page.locator("#jspsych-instructions-next").click();
+    await page.locator("#jspsych-instructions-next").click();
+    // Initial sheet, both introductions and practice all time out untouched.
+    await page.getByRole("heading", { name: "Design problem" }).waitFor({ timeout: 20000 });
+    await page.locator("#jspsych-instructions-next").click();
+    await sketch(page);
+    await page.locator("#concept-description").fill("Unfinished idea");
+    // The brainstorm times out with the sheet still open.
+    await page.getByRole("heading", { name: "Debrief" }).waitFor({ timeout: 20000 });
+    await page.getByRole("button", { name: "Finish" }).click();
+    await expect(page.getByText("All done")).toBeVisible({ timeout: 30000 });
+
+    const uid = await page.evaluate(() => window.__saver.docId);
+    const chunks = await fsGet(`experiments/${EXPERIMENT_ID}/participants/${uid}/trials?pageSize=500`);
+    const trials = (chunks.body.documents || []).map((d) => decodeFields(d.fields)).flatMap((d) => d.trials);
+    const byPhase = (phase) => trials.filter((t) => t.task === "concept_sheet" && t.phase === phase);
+    expect(trials[0].condition).toBe("control");
+    expect(trials[0].problem).toBe("cup");
+    expect(byPhase("initial").map((t) => [t.end_reason, t.empty])).toEqual([["time_up", true]]);
+    expect(byPhase("practice").map((t) => [t.end_reason, t.empty])).toEqual([["time_up", true]]);
+    for (const task of ["intro_idea_generation", "intro_brainstorming"]) {
+      const row = trials.find((t) => t.task === task);
+      expect(row.end_reason).toBe("time_up");
+      expect(row.response).toBeNull();
+    }
+    const last = byPhase("brainstorm");
+    expect(last.length).toBe(1);
+    expect(last[0].end_reason).toBe("time_up");
+    expect(last[0].empty).toBe(false);
+    expect(last[0].n_strokes).toBe(1);
+    expect(last[0].description).toBe("Unfinished idea");
   });
 
   test("declining consent ends the study without a thank-you-for-your-data message", async ({ page }) => {
@@ -164,20 +281,7 @@ test.describe("experiment", () => {
     // Run the real flow up to the last click, then cut the connection before "Finish".
     await page.goto("/?emulator=1");
     await page.waitForFunction(() => window.__saver && window.__saver.uid);
-    await page.getByRole("button", { name: "I agree to participate" }).click();
-    await page.locator("#jspsych-instructions-next").click();
-    await page.locator("#jspsych-instructions-next").click();
-    await page.locator('input[value="Continue"]').click();
-    await page.getByRole("button", { name: "Program B" }).click();
-    await page.locator("#jspsych-instructions-next").click();
-    for (let i = 0; i < 8; i++) {
-      const stim = page.locator(".stimulus");
-      await stim.waitFor({ state: "visible" });
-      await page.keyboard.press("f");
-      await stim.waitFor({ state: "detached" });
-    }
-    await page.locator("#jspsych-survey-likert-next").click();
-    await page.locator("#jspsych-survey-text-next").click();
+    await runThroughExperiment(page, { stopBeforeFinish: true });
     await context.setOffline(true);
     await page.getByRole("button", { name: "Finish" }).click();
     await expect(page.locator("#data-saver-fallback")).toBeVisible({ timeout: 40000 });

@@ -49,8 +49,8 @@ library(jsonlite)
 
 # Must match EXPERIMENT.id in experiment.js, and the --experiment you passed to the export.
 # Phase 2 runs under its own id, so its data never mix with Phase 1's.
-experiment_id        <- "framing-demo"
-experiment_id_phase2 <- "framing-demo-phase2"
+experiment_id        <- "leahy2020-pilot-a"
+experiment_id_phase2 <- "leahy2020-phase2"
 ```
 
 ```{r}
@@ -245,14 +245,14 @@ The stimuli in this experiment was to provide participants with an initial desig
 Participants are given one of two design problems: either to design a no-spill cup, or a bike rack.
 In order to reduce the number of participants needed for my reproduction and stay within budget, I am hoping to just use the no-spill cup problem. 
 I will recruit 92 participants (engineering students whose ages ranged from 17-18) and randomly assign them to either the control of the experimental group. 
-I will provide the experimental group with a description of the design problem and the same inital example usign in the original experiment, and provide the control group with just the design problem. 
+I will provide the experimental group with a description of the design problem and the same inital example using in the original experiment, and provide the control group with just the design problem. 
 Then, I will provide each group with a recreation of the "concept sheet" used in the original experiment, which has space for them sketch and describe their design. 
 Pariticipants first inspect or create their inital designs (6 min), then are provided with a short introduction to idea generation (3 min), then are provided with a short introduction to brainstorming (3 min), then practice brainstomring (3 min), then are asked to brainstorm for the design problem (30 min). 
 The original study procedure also includes a section about design heristics, but this section addresses the authors' second hypotheses and can be omitted.
 The total study length will be 45 minutes, and I will create it entirely as a web application with space for the participants to sketch, take notes, and read the necessary information.
 Afterwards, each participant's concept sets will be scored by two independent coders (blind to the study hypothesis).
 Coders will be asked to give each participant's brainstorming a holistic rating for every concept in the set based on its “overall similarity to the initial concept in the set.”
-I will preregister a 2x2 ANOVA to compare fixation scores.
+I will preregister a one-way ANOVA to compare fixation scores.
 I expect properly transforming this workshop-style experiment into a web application to be a bit challenging.
 I'm thinking an interesting possible extension would be to expand the population of this study to expert designers to see if that changes the results.
 
