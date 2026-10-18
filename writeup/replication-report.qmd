@@ -522,17 +522,14 @@ analyses here too.
 > "failed to follow instructions or the completed concepts were illegible or uninterpretable"
 
 I expanded this explustion criteria to exclude:
+
 - Participants who didn't complete the study.
 - Pariticpants with no non-empty brainstorming concept sheets.
 - Control participants with an empty initial concept sheet (in this case there is nothing to compare to).
 
-**Data cleaning.**
+**Data cleaning.** Empty concept sheets will be dropped from the analysis. This matches the original experiment, where only filled-out sheets were inspected during analysis.
 
-Empty concept sheets will be dropped from the analysis. This matches the original experiment, where only filled-out sheets were inspected during analysis.
-
-**Data coding.**
-
-This experiment has the added task of coding the results of participants' brainstormed concepts on how similar they were to the intial example. In the original experiment 
+**Data coding.** This experiment has the added task of coding the results of participants' brainstormed concepts on how similar they were to the intial example. In the original experiment:
 
 > "Two independent coders… rated the overall similarity of each generated concept to that student's initial concept (either provided or self-generated)."
 
