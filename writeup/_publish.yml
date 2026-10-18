@@ -1,0 +1,4 @@
+- source: replication-report.qmd
+  posit-connect-cloud:
+    - id: 01a150b3-54a6-5e0e-0917-a02b974cf116
+      url: https://connect.posit.cloud/zoekaputa/content/01a150b3-54a6-5e0e-0917-a02b974cf116

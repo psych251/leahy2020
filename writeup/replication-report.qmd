@@ -1,6 +1,6 @@
 ---
-title: "Replication of Problems 1 and 2 of Tversky & Kahneman (1981, *Science*)"
-author: "Your Name (your.email@stanford.edu)"
+title: "Replication of Hypothesis 1 Experiment of Leahy et al. (2020, *Journal of Mechanical Design*)"
+author: "Zoe Kaputa (kaputa@stanford.edu)"
 date: today
 date-format: long
 format:
@@ -57,19 +57,31 @@ experiment_id_phase2 <- "leahy2020-phase2"
 #| label: original-study
 #| include: false
 # The original study's numbers, entered once and used by the power analysis, the Key
-# statistics table, and the side-by-side figures. Replace these with your original study's
-# values, and say in a comment exactly where in the paper each one comes from.
+# statistics table, and the side-by-side figures.
 #
-# Tversky & Kahneman (1981), Problem 1 (gain frame, N = 152): 72% chose the certain program,
-# 28% the risky one. Problem 2 (loss frame, N = 155): 22% certain, 78% risky. The paper
-# reports percentages, so the counts below are reconstructed from them.
-original <- tibble(
-  condition = c("gain", "loss"),
-  n         = c(152, 155),
-  risky     = round(c(0.28 * 152, 0.78 * 155))
+# Leahy et al. (2020), Results, "Hypothesis 1": a 2 x 2 between-subjects ANOVA (design
+# problem x fixation source) on the fixation ratio, i.e. concepts rated "similar" to the
+# initial concept divided by all concepts, first (individual brainstorming) phase only.
+#   Fixation source: self-generated (control) M = 0.32, SD = 0.24; provided example
+#                    M = 0.24, SD = 0.28; F(1, 165) = 4.4, p < .04.
+#   Problem:         no-spill cup M = 0.23, SD = 0.23; bike rack M = 0.33, SD = 0.29;
+#                    F(1, 165) = 5.6, p < .02.
+#   Interaction:     F(1, 165) < 1, ns.
+# N = 166 concept sets were analysed ("Measuring Fixation"), although an error df of 165 in a
+# 2 x 2 between-subjects ANOVA implies N = 169. The paper does not report the n per fixation-
+# source group, so an even split (83 / 83) is assumed below: the original's 95% CI and
+# Cohen's d are therefore approximations, while its F and p are as reported.
+original <- list(
+  groups = tibble(
+    condition = c("control", "example"),
+    n         = c(83, 83),
+    mean      = c(0.32, 0.24),
+    sd        = c(0.24, 0.28)
+  ),
+  F        = 4.4,
+  df_error = 165,
+  p_text   = "< .04"
 )
-original_p_gain <- original$risky[original$condition == "gain"] / original$n[original$condition == "gain"]
-original_p_loss <- original$risky[original$condition == "loss"] / original$n[original$condition == "loss"]
 ```
 
 ::: {.callout-note appearance="simple" icon=false}
@@ -77,36 +89,19 @@ original_p_loss <- original$risky[original$condition == "loss"] / original$n[ori
 
 - **Original paper:** Leahy, Keelin, et al. "Design fixation from initial examples: Provided versus self-generated ideas." Journal of Mechanical Design 142.10 (2020): 101402. <https://doi.org/10.1115/1.4046446>
 - **Preregistration:** [OSF registration](https://osf.io/XXXXX) *(registered YYYY-MM-DD, before final data collection)*
-- **Live experiment:** <https://psych251.github.io/your-repo/> (take the study exactly as participants did)
+- **Live experiment:** <https://psych251.github.io/leahy2020/> (take the study exactly as participants did)
 - **Repository:** <https://github.com/psych251/leahy2020> (experiment code, data, and this report)
 :::
 
 # AI use statement
 
-I used claude to help me brainstorm what paper to use for this project based on my research interests.
-
-::: {.callout-tip icon=false}
-## Guidance
-
-This statement comes first so a reader knows how the work was produced before reading it. Keep
-it current from the start of the project rather than reconstructing it at the end.
-
-**Course policy: you write all of the text in this report yourself.** AI tools may help with
-code, and may comment on drafts you have written, but they may not write, rewrite or paraphrase
-any of the report's text. That includes "polishing" a paragraph.
-
-List every AI tool you used on this project, what you used it for, and how you checked what it
-produced. Include coding assistants (for example Claude Code, Codex, Copilot) and chat
-assistants. Name the model and version where you know it. "How you checked" is the important
-column: say what you verified yourself, not that the output "looked right". If you used no AI
-tools, replace the table with a sentence saying so.
-:::
+I used claude to help me implement the experiment and data analysis, and with brainstorming what paper to use for this project based on my research interests.
 
 | Tool and model | What it was used for | How you checked the output |
 |---|---|---|
-| *e.g., Claude Code (Claude Opus 5)* | *Implemented the experiment from the original Methods section* | *Ran the automated tests; took the study myself; compared every screen with the original materials* |
-| *e.g., Claude Code (Claude Opus 5)* | *Drafted the analysis code* | *Checked the exclusion counts by hand; confirmed the key test matches the preregistration* |
-| *e.g., ChatGPT* | *Comments on my draft of the Introduction (no text generated)* | *Decided which comments to act on and made every change myself; checked any factual claim against the source* |
+| *Claude (Claude Sonnet 5.5)* | *Brainstormed papers that may be of interest to me* | *Read the papers myself* |
+| *Claude Code (Claude Opus 5.5)* | *Implemented the experiment from the original Methods section* | *Ran the automated tests; took the study myself; compared every screen with the original materials* |
+| *Claude Code (Claude Opus 5.5)* | *Drafted the analysis code* | *Checked the exclusion counts by hand; confirmed the key test matches the preregistration* |
 
 I wrote all of the text in this report myself. AI tools were not used to write, rewrite or
 paraphrase it, and were not used to generate, alter, or impute any participant data. I take full
@@ -129,78 +124,180 @@ adapt its code and say so in the caption.
 #| label: analysis-functions
 #| code-summary: "Show the analysis code (shared by Phase 1 and Phase 2)"
 
-# Load one phase's exported data and apply the exclusion rule. Returns NULL if that phase
-# has not been exported yet, which is how every section below knows to skip itself.
+# Data layout this code expects:
+#   data/raw/<experiment id>/participants.csv, trials.csv, errors.csv   from `npm run export`
+#   data/coded/<experiment id>/ratings.csv                               from the coders:
+#     one row per rated brainstorm concept, columns
+#       participant_id   as in trials.csv
+#       sheet_number     the concept's sheet number in the brainstorm phase
+#       similar          1 if rated similar to that participant's initial concept, else 0
+#                        (the final, reconciled rating)
+# Until ratings.csv exists, everything up to the exclusions runs and the fixation analyses
+# say they are waiting for the coding.
+
+condition_labels <- c(control = "Self-generated (control)", example = "Provided example")
+
+# Concept sheets as the participant left them. A sheet revisited from the "Go to" list has
+# one row per visit (`revision` 1, 2, ...); the highest revision is its final version.
+final_sheets <- function(trials) {
+  needed <- c("task", "phase", "sheet_number", "revision", "empty")
+  if (!all(needed %in% names(trials)) || !any(trials$task == "concept_sheet", na.rm = TRUE)) {
+    return(tibble(participant_id = character(), phase = character(), sheet_number = integer(),
+                  revision = integer(), empty = logical()))
+  }
+  trials |>
+    filter(task == "concept_sheet") |>
+    mutate(sheet_number = as.integer(sheet_number), revision = as.integer(revision),
+           empty = as.logical(empty)) |>
+    group_by(participant_id, phase, sheet_number) |>
+    slice_max(revision, n = 1, with_ties = FALSE) |>
+    ungroup()
+}
+
+# Load one phase's exported data, apply the exclusion rule, and compute fixation scores if the
+# ratings exist. Returns NULL if that phase has not been exported yet, which is how every
+# section below knows to skip itself.
 read_phase <- function(id) {
   dir <- file.path("..", "data", "raw", id)
   if (!all(file.exists(file.path(dir, c("participants.csv", "trials.csv"))))) return(NULL)
   participants <- read_csv(file.path(dir, "participants.csv"), show_col_types = FALSE)
-  trials       <- read_csv(file.path(dir, "trials.csv"), show_col_types = FALSE)
+  trials       <- read_csv(file.path(dir, "trials.csv"), show_col_types = FALSE, guess_max = 1e5)
   errors_path  <- file.path(dir, "errors.csv")
   errors <- if (file.exists(errors_path)) read_csv(errors_path, show_col_types = FALSE) else tibble()
 
-  complete <- participants |> filter(completed)
+  complete <- participants |> filter(completed %in% TRUE)
+  sheets   <- final_sheets(trials)
 
-  # Exclusion rule: replace with the rule you preregistered. Here: at least 6 of 8
-  # lexical-decision trials correct, and at least one speeded response at all (a session in
-  # which every speeded trial timed out is what a device without a keyboard produces).
-  ld <- trials |>
-    filter(task == "lexical_decision") |>
+  # Exclusion rule: replace with the rule you preregistered. Here, the minimum the fixation
+  # ratio needs to be defined: at least one non-empty brainstorm concept, and (control group)
+  # a non-empty initial concept to compare the brainstorm concepts with. The original also
+  # removed concept sets in which students "failed to follow instructions or the completed
+  # concepts were illegible or uninterpretable"; add that as a coder judgment if you use it.
+  per_participant <- sheets |>
     group_by(participant_id) |>
-    summarise(ld_acc           = mean(as.logical(correct), na.rm = TRUE),
-              ld_all_timed_out = all(as.logical(timed_out)),
+    summarise(n_concepts  = sum(phase == "brainstorm" & empty %in% FALSE),
+              has_initial = any(phase == "initial" & empty %in% FALSE),
               .groups = "drop")
-  checked <- complete |> left_join(ld, by = "participant_id")
-  keep <- checked |> filter(!is.na(ld_acc), !ld_all_timed_out, ld_acc >= 0.75)
+  checked <- complete |>
+    select(participant_id, condition, problem) |>
+    left_join(per_participant, by = "participant_id") |>
+    mutate(n_concepts  = replace_na(n_concepts, 0L),
+           has_initial = replace_na(has_initial, FALSE),
+           no_concepts = n_concepts == 0,
+           no_initial  = condition == "control" & !has_initial)
+  keep <- checked |> filter(!no_concepts, !no_initial)
 
-  list(participants = participants, trials = trials, errors = errors,
-       complete = complete, keep = keep,
-       n_no_response = sum(checked$ld_all_timed_out %in% TRUE))
+  ratings_path <- file.path("..", "data", "coded", id, "ratings.csv")
+  ratings <- if (file.exists(ratings_path)) read_csv(ratings_path, show_col_types = FALSE) else NULL
+
+  list(participants = participants, trials = trials, errors = errors, sheets = sheets,
+       complete = complete, keep = keep, ratings = ratings,
+       scores = fixation_scores(keep, sheets, ratings),
+       n_no_concepts = sum(checked$no_concepts), n_no_initial = sum(checked$no_initial & !checked$no_concepts))
 }
 
-# The key comparison's raw counts: how many analysed participants chose the risky program
-# in each frame.
-risky_counts <- function(d) {
-  d$trials |>
-    filter(task == "framing", participant_id %in% d$keep$participant_id) |>
+# One row per analysed participant: fixation ratio = brainstorm concepts rated similar to the
+# initial concept / all brainstorm concepts (Leahy et al., 2020, "Measuring Fixation").
+# NULL until the ratings exist.
+fixation_scores <- function(keep, sheets, ratings) {
+  if (is.null(ratings)) return(NULL)
+  concepts <- sheets |>
+    filter(phase == "brainstorm", empty %in% FALSE, participant_id %in% keep$participant_id) |>
+    select(participant_id, sheet_number) |>
+    left_join(ratings |> select(participant_id, sheet_number, similar),
+              by = c("participant_id", "sheet_number"))
+  n_unrated <- sum(is.na(concepts$similar))
+  if (n_unrated > 0) message(n_unrated, " brainstorm concept(s) have no rating yet and are left out of the ratios.")
+  concepts |>
+    filter(!is.na(similar)) |>
+    group_by(participant_id) |>
+    summarise(n_rated = n(), n_similar = sum(similar == 1), .groups = "drop") |>
+    mutate(ratio = n_similar / n_rated) |>
+    inner_join(keep |> select(participant_id, condition, problem, n_concepts), by = "participant_id") |>
+    mutate(condition = factor(condition, levels = names(condition_labels)),
+           problem   = factor(problem, levels = c("cup", "bike")))
+}
+
+# Mean, SD and n of the fixation ratio per fixation-source group.
+group_summary <- function(scores) {
+  scores |>
     group_by(condition) |>
-    summarise(risky = sum(choice == "risky"), n = n(), .groups = "drop")
+    summarise(n = n(), mean = mean(ratio), sd = sd(ratio), .groups = "drop") |>
+    mutate(condition = as.character(condition))
 }
 
-# The key statistic: difference in the proportion choosing the risky program (loss minus
-# gain) with a 95% CI, and the uncorrected chi-square, which is the same test. NULL until
-# both frames have at least one analysed participant.
-diff_ci <- function(counts) {
-  loss <- counts[counts$condition == "loss", ]
-  gain <- counts[counts$condition == "gain", ]
-  if (nrow(loss) == 0 || nrow(gain) == 0) return(NULL)
-  pt <- prop.test(c(loss$risky, gain$risky), c(loss$n, gain$n), correct = FALSE)
-  tibble(N = loss$n + gain$n,
-         estimate = unname(pt$estimate[1] - pt$estimate[2]),
-         ci_low = pt$conf.int[1], ci_high = pt$conf.int[2],
-         statistic = unname(pt$statistic), p = pt$p.value)
+# 2 x 2 between-subjects ANOVA with Type II sums of squares: each main effect is tested
+# controlling for the other, which suits unequal cell sizes and (as in the original) an
+# interaction that is expected to be small. The paper does not say which type it used.
+fixation_anova <- function(scores) {
+  rss <- function(m) sum(residuals(m)^2)
+  two_problems <- n_distinct(scores$problem) == 2
+  full <- if (two_problems) lm(ratio ~ condition * problem, scores) else lm(ratio ~ condition, scores)
+  df_e <- df.residual(full)
+  test <- function(effect, without, with) {
+    ss <- rss(without) - rss(with)
+    f  <- ss / (rss(full) / df_e)
+    tibble(effect = effect, F = f, df = 1, df_error = df_e,
+           p = pf(f, 1, df_e, lower.tail = FALSE), partial_eta2 = ss / (ss + rss(full)))
+  }
+  if (!two_problems) return(test("Fixation source", lm(ratio ~ 1, scores), full))
+  additive <- lm(ratio ~ condition + problem, scores)
+  bind_rows(test("Fixation source", lm(ratio ~ problem, scores), additive),
+            test("Design problem", lm(ratio ~ condition, scores), additive),
+            test("Source × problem", additive, full))
 }
 
-# Side-by-side figure: any number of studies on the same axes, in the order given.
-prop_ci <- function(x, n) {
-  ci <- prop.test(x, n, correct = FALSE)$conf.int
-  tibble(p = x / n, low = ci[1], high = ci[2])
+# The key statistic: difference in mean fixation ratio, self-generated minus provided
+# (positive = the original's direction), with a 95% CI, Cohen's d (pooled SD), and the
+# ANOVA main effect of fixation source. From group summaries alone (the original), the CI
+# uses the pooled-df t interval and F, p are taken as given.
+key_from_groups <- function(g, F, df_error, p, p_text = NULL, eta2 = NULL) {
+  c_ <- g[g$condition == "control", ]
+  e_ <- g[g$condition == "example", ]
+  est <- c_$mean - e_$mean
+  se  <- sqrt(c_$sd^2 / c_$n + e_$sd^2 / e_$n)
+  pooled_sd <- sqrt(((c_$n - 1) * c_$sd^2 + (e_$n - 1) * e_$sd^2) / (c_$n + e_$n - 2))
+  half <- qt(0.975, c_$n + e_$n - 2) * se
+  tibble(N = c_$n + e_$n, m_control = c_$mean, sd_control = c_$sd, m_example = e_$mean, sd_example = e_$sd,
+         estimate = est, ci_low = est - half, ci_high = est + half,
+         F = F, df_error = df_error, p = p,
+         p_text = p_text %||% format.pval(p, digits = 2, eps = 0.001),
+         d = est / pooled_sd, partial_eta2 = eta2 %||% (F / (F + df_error)))
 }
+key_original <- function() key_from_groups(original$groups, original$F, original$df_error, NA, original$p_text)
+
+# The same statistics from a phase's data. NULL until both groups have at least two
+# analysed participants.
+key_stats <- function(d) {
+  s <- d$scores
+  if (is.null(s) || any(table(s$condition) < 2)) return(NULL)
+  g <- group_summary(s)
+  a <- fixation_anova(s) |> filter(effect == "Fixation source")
+  out <- key_from_groups(g, a$F, a$df_error, a$p, eta2 = a$partial_eta2)
+  # Welch interval for the difference, as the data allow it (the original's uses pooled df).
+  ci <- tryCatch(t.test(ratio ~ condition, data = s)$conf.int, error = function(e) NULL)
+  if (is.null(ci)) out else mutate(out, ci_low = ci[1], ci_high = ci[2])
+}
+
+# Side-by-side figure: mean fixation ratio by fixation source with 95% CIs, for any number of
+# studies (each a group_summary()-shaped tibble), in the order given.
 comparison_plot <- function(...) {
   studies <- list(...)
   studies <- studies[!map_lgl(studies, ~ is.null(.x) || nrow(.x) == 0)]
   df <- imap_dfr(studies, ~ mutate(.x, Study = .y)) |>
-    rowwise() |> mutate(prop_ci(risky, n)) |> ungroup() |>
-    mutate(Study = factor(Study, levels = names(studies)), label = sprintf("n = %d", n))
+    mutate(half = qt(0.975, pmax(n - 1, 1)) * sd / sqrt(n),
+           low = pmax(0, mean - half), high = pmin(1, mean + half),
+           Condition = factor(condition_labels[condition], levels = condition_labels),
+           Study = factor(Study, levels = names(studies)), label = sprintf("n = %d", n))
   fills <- setNames(c("grey55", "#1E6E76", "#B8792A")[seq_along(studies)], names(studies))
   dodge <- position_dodge(width = 0.8)
-  ggplot(df, aes(x = condition, y = p, fill = Study)) +
+  ggplot(df, aes(x = Condition, y = mean, fill = Study)) +
     geom_col(position = dodge, width = 0.75) +
     geom_errorbar(aes(ymin = low, ymax = high), position = dodge, width = 0.2) +
     geom_text(aes(y = 0.02, label = label), position = dodge, vjust = 0, size = 3, colour = "white") +
     scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
     scale_fill_manual(values = fills) +
-    labs(x = "Frame", y = "Chose the risky program", fill = NULL) +
+    labs(x = "Fixation source", y = "Concepts rated similar to the initial concept", fill = NULL) +
     theme_minimal(base_size = 12) +
     theme(legend.position = "top")
 }
@@ -209,52 +306,45 @@ phase1 <- read_phase(experiment_id)
 phase2 <- read_phase(experiment_id_phase2)
 have_data   <- !is.null(phase1)
 have_phase2 <- !is.null(phase2)
+have_scores <- have_data && !is.null(phase1$scores)
 ```
 
 ```{r}
 #| label: key-stats
 #| echo: false
-fmt_row <- function(study, r) {
+fmt_row <- function(study, r, missing = "not yet collected") {
   if (is.null(r)) {
-    return(tibble(Study = study, N = "", `Effect (loss − gain)` = "not yet collected",
-                  `95% CI` = "", `χ²(1)` = "", p = ""))
+    return(tibble(Study = study, N = "", `Self-generated M (SD)` = missing, `Provided M (SD)` = "",
+                  `Difference` = "", `95% CI` = "", F = "", p = "", d = "", `Partial η²` = ""))
   }
   tibble(Study = study, N = as.character(r$N),
-         `Effect (loss − gain)` = sprintf("%.0f points", 100 * r$estimate),
-         `95% CI` = sprintf("[%.0f, %.0f]", 100 * r$ci_low, 100 * r$ci_high),
-         `χ²(1)` = sprintf("%.2f", r$statistic),
-         p = format.pval(r$p, digits = 2, eps = 0.001))
+         `Self-generated M (SD)` = sprintf("%.2f (%.2f)", r$m_control, r$sd_control),
+         `Provided M (SD)`       = sprintf("%.2f (%.2f)", r$m_example, r$sd_example),
+         `Difference` = sprintf("%.2f", r$estimate),
+         `95% CI` = sprintf("[%.2f, %.2f]", r$ci_low, r$ci_high),
+         F = sprintf("F(1, %d) = %.2f", as.integer(r$df_error), r$F),
+         p = r$p_text,
+         d = sprintf("%.2f", r$d),
+         `Partial η²` = sprintf("%.3f", r$partial_eta2))
+}
+phase_row <- function(study, have, d) {
+  if (!have) return(fmt_row(study, NULL))
+  fmt_row(study, key_stats(d), missing = if (is.null(d$scores)) "awaiting coding" else "too few analysed")
 }
 bind_rows(
-  fmt_row("Original", diff_ci(original)),
-  fmt_row("Phase 1: replication", if (have_data) diff_ci(risky_counts(phase1))),
-  fmt_row("Phase 2: extension", if (have_phase2) diff_ci(risky_counts(phase2)))
+  fmt_row("Original", key_original()),
+  phase_row("Phase 1: replication", have_data, phase1),
+  phase_row("Phase 2: extension", have_phase2, phase2)
 ) |>
-  knitr::kable(align = "lrlllr",
-               caption = "Key comparison: difference in the percentage of analysed participants choosing the risky program, loss frame minus gain frame.")
+  knitr::kable(align = "lrrrrlllrr",
+               caption = "Key comparison: main effect of fixation source on the fixation ratio (share of brainstormed concepts rated similar to the initial concept), from the 2 × 2 problem × fixation source ANOVA. Difference = self-generated minus provided example; positive is the original's direction. The original's CI and d assume equal group sizes, which the paper does not report.")
 ```
 
 # Phase 1: Replication
 
 ## Introduction
 
-My research is surrounding design process (often specific to visual design) and desgin methodolgy for technology.
-Therefore, I thought this paper, which explores the effects of using intial examples on design fixation.
-I specifically want to recreate the experiment testing the authors' first hypothesis: "Providing Examples Leads to More Fixation." 
-The stimuli in this experiment was to provide participants with an initial design. The control group must come up with their own inital design. 
-Participants are given one of two design problems: either to design a no-spill cup, or a bike rack.
-In order to reduce the number of participants needed for my reproduction and stay within budget, I am hoping to just use the no-spill cup problem. 
-I will recruit 92 participants (engineering students whose ages ranged from 17-18) and randomly assign them to either the control of the experimental group. 
-I will provide the experimental group with a description of the design problem and the same inital example using in the original experiment, and provide the control group with just the design problem. 
-Then, I will provide each group with a recreation of the "concept sheet" used in the original experiment, which has space for them sketch and describe their design. 
-Pariticipants first inspect or create their inital designs (6 min), then are provided with a short introduction to idea generation (3 min), then are provided with a short introduction to brainstorming (3 min), then practice brainstomring (3 min), then are asked to brainstorm for the design problem (30 min). 
-The original study procedure also includes a section about design heristics, but this section addresses the authors' second hypotheses and can be omitted.
-The total study length will be 45 minutes, and I will create it entirely as a web application with space for the participants to sketch, take notes, and read the necessary information.
-Afterwards, each participant's concept sets will be scored by two independent coders (blind to the study hypothesis).
-Coders will be asked to give each participant's brainstorming a holistic rating for every concept in the set based on its “overall similarity to the initial concept in the set.”
-I will preregister a one-way ANOVA to compare fixation scores.
-I expect properly transforming this workshop-style experiment into a web application to be a bit challenging.
-I'm thinking an interesting possible extension would be to expand the population of this study to expert designers to see if that changes the results.
+My research is surrounding the design process (often specific to visual design) and design methodology for technology. Therefore, I thought of this paper, which explores the effects of using initial examples on design fixation. I specifically want to recreate the experiment testing the authors’ first hypothesis: “Providing Examples Leads to More Fixation.” The stimuli in this experiment was to provide participants with an initial design. The control group must come up with their own initial design. Participants are given one of two design problems: either to design a no-spill cup, or a bike rack. My experimental design will shorten the original design in order to preserve resources, but the same statistics will be captured. Afterwards, each participant’s concept sets will be scored by an independent coder (blind to the study hypothesis) on “overall similarity to the initial concept in the set.” I will preregister a 2x2 ANOVA to compare fixation scores across both design problems. I expect properly transforming this workshop-style experiment into a web application to be a bit challenging. I’m thinking an interesting possible extension would be to expand the population of this study to expert designers to see if that changes the results.
 
 
 ::: {.callout-tip icon=false}
@@ -286,19 +376,22 @@ what the course's participant budget allowed.
 
 ```{r}
 #| label: power
+# Power to detect the original main effect of fixation source, approximated as a two-group
+# comparison (self-generated vs provided) with the original's Cohen's d.
+orig_key <- key_original()
 power_rows <- map_dfr(c(0.80, 0.90, 0.95), function(pw) {
-  n <- power.prop.test(p1 = original_p_gain, p2 = original_p_loss,
-                       power = pw, sig.level = 0.05)$n
+  n <- power.t.test(delta = orig_key$d, sd = 1, power = pw, sig.level = 0.05)$n
   tibble(power = scales::percent(pw), n_per_group = ceiling(n), n_total = 2 * ceiling(n))
 })
 
-original_effect <- original_p_loss - original_p_gain
-two_and_half <- ceiling(2.5 * original$n)
+original_effect <- orig_key$estimate
+# 2.5 times the original sample, per fixation-source group (Simonsohn, 2015).
+two_and_half <- ceiling(2.5 * original$groups$n)
 
-knitr::kable(power_rows, col.names = c("Power", "N per frame", "N total"),
+knitr::kable(power_rows, col.names = c("Power", "N per fixation-source group", "N total"),
              caption = sprintf(
-               "Sample needed to detect the original effect (risky choice: %.0f%% gain vs %.0f%% loss, a difference of %.0f points), two-sided alpha = .05.",
-               100 * original_p_gain, 100 * original_p_loss, 100 * original_effect))
+               "Sample needed to detect the original effect of fixation source (fixation ratio %.2f self-generated vs %.2f provided, d = %.2f), two-sided alpha = .05.",
+               original$groups$mean[1], original$groups$mean[2], orig_key$d))
 ```
 
 For comparison, 2.5 times the original sample would be `r two_and_half[1]` in the gain frame
@@ -417,24 +510,28 @@ trials        <- phase1$trials
 errors        <- phase1$errors
 complete      <- phase1$complete
 keep          <- phase1$keep
-n_no_response <- phase1$n_no_response
+sheets        <- phase1$sheets
+scores        <- phase1$scores
 ```
 
 ```{r}
 #| label: funnel
 #| eval: !expr have_data
-funnel_levels <- c("Started", "Completed", "Passed exclusion criteria")
+funnel_levels <- c("Started", "Completed", "Passed exclusion criteria", "Fixation scored")
 bind_rows(
   participants |> mutate(step = "Started"),
   complete     |> mutate(step = "Completed"),
-  keep         |> mutate(step = "Passed exclusion criteria")
+  keep         |> mutate(step = "Passed exclusion criteria"),
+  if (!is.null(scores)) scores |> mutate(condition = as.character(condition), problem = as.character(problem), step = "Fixation scored")
 ) |>
-  mutate(step = factor(step, levels = funnel_levels)) |>
-  count(step, condition, .drop = FALSE) |>
-  pivot_wider(names_from = condition, values_from = n, values_fill = 0) |>
+  filter(!is.na(condition)) |>
+  mutate(step = factor(step, levels = funnel_levels),
+         cell = paste(condition_labels[condition], if_else(problem == "cup", "cup", "bike rack"), sep = ", ")) |>
+  count(step, cell, .drop = FALSE) |>
+  pivot_wider(names_from = cell, values_from = n, values_fill = 0) |>
   mutate(Total = rowSums(across(-step))) |>
   rename(Step = step) |>
-  knitr::kable(caption = "Participants at each step, by frame. Differences between frames in attrition or exclusion are a threat to validity and should be discussed.")
+  knitr::kable(caption = "Participants at each step, by fixation source and design problem. Differences between groups in attrition or exclusion are a threat to validity and should be discussed.")
 ```
 
 ```{r}
@@ -444,11 +541,19 @@ bind_rows(
 #| results: asis
 cat(sprintf("Of %d participants who started, %d completed the study and %d met the exclusion criteria.",
             nrow(participants), nrow(complete), nrow(keep)))
-if (n_no_response > 0) {
-  cat(sprintf(" %d completed session(s) contained no response to any speeded trial and were excluded on that basis.",
-              n_no_response))
+if (phase1$n_no_concepts > 0) {
+  cat(sprintf(" %d completed session(s) had no non-empty brainstorm concept and were excluded on that basis.",
+              phase1$n_no_concepts))
 }
-if (nrow(keep) == 0) cat(" No participants remain for analysis yet, so the results below are empty.")
+if (phase1$n_no_initial > 0) {
+  cat(sprintf(" %d control participant(s) left their initial concept sheet empty and were excluded, because there was no initial concept to compare with.",
+              phase1$n_no_initial))
+}
+if (is.null(scores)) {
+  cat(" The concepts have not been coded yet (no `data/coded/", experiment_id, "/ratings.csv`), so the fixation results below are skipped.", sep = "")
+} else if (nrow(scores) == 0) {
+  cat(" No participants remain for analysis yet, so the results below are empty.")
+}
 cat("\n")
 ```
 
@@ -498,22 +603,20 @@ the data beyond that.
 
 ```{r}
 #| label: confirmatory
-#| eval: !expr have_data
-framing <- trials |>
-  filter(task == "framing", participant_id %in% keep$participant_id) |>
-  select(participant_id, condition, choice)
-risky <- risky_counts(phase1)
-tab <- table(Frame = framing$condition, Choice = framing$choice)
+#| eval: !expr have_scores
+cell_means <- scores |>
+  group_by(`Fixation source` = condition_labels[as.character(condition)],
+           Problem = if_else(problem == "cup", "No-spill cup", "Bike rack")) |>
+  summarise(n = n(), M = mean(ratio), SD = sd(ratio), .groups = "drop")
+knitr::kable(cell_means, digits = 2, caption = "Fixation ratio by cell.")
 
-if (all(dim(tab) == c(2, 2))) {
-  # No continuity correction, so this test and the effect-size interval below agree: the
-  # uncorrected 2 x 2 chi-square is the same test as the two-proportion comparison.
-  print(tab)
-  print(chisq.test(tab, correct = FALSE))
+if (nrow(scores) > 4 && n_distinct(scores$condition) == 2) {
+  fixation_anova(scores) |>
+    transmute(Effect = effect, F = sprintf("F(1, %d) = %.2f", as.integer(df_error), F),
+              p = format.pval(p, digits = 2, eps = 0.001), `Partial η²` = sprintf("%.3f", partial_eta2)) |>
+    knitr::kable(caption = "2 × 2 between-subjects ANOVA on the fixation ratio (Type II sums of squares). Original: fixation source F(1, 165) = 4.4, p < .04; problem F(1, 165) = 5.6, p < .02; interaction F < 1.")
 } else {
-  message("Chi-square not run: the frame-by-choice table is ", paste(dim(tab), collapse = " x "),
-          ". It needs both frames and both choices; with ", nrow(framing),
-          " participant(s) in the analysis set this is expected.")
+  message("ANOVA not run: it needs analysed participants in both fixation-source groups; there are ", nrow(scores), ".")
 }
 ```
 
@@ -531,35 +634,35 @@ informative and should be reported as such (Experimentology §3.2).
 
 ```{r}
 #| label: comparison
-#| eval: !expr have_data
-orig <- diff_ci(original)
-rep  <- diff_ci(risky)
+#| eval: !expr have_scores
+orig <- key_original()
+rep  <- key_stats(phase1)
 
 if (!is.null(rep)) {
   bind_rows(orig |> mutate(Study = "Original"), rep |> mutate(Study = "Phase 1: replication")) |>
     transmute(Study, N,
-              `Difference (loss − gain)` = sprintf("%.0f points", 100 * estimate),
-              `95% CI` = sprintf("[%.0f, %.0f]", 100 * ci_low, 100 * ci_high),
-              p = format.pval(p, digits = 2, eps = 0.001)) |>
-    knitr::kable(caption = "Effect size: difference in the percentage choosing the risky program.")
+              `Difference (self-generated − provided)` = sprintf("%.2f", estimate),
+              `95% CI` = sprintf("[%.2f, %.2f]", ci_low, ci_high),
+              d = sprintf("%.2f", d), p = p_text) |>
+    knitr::kable(caption = "Effect size: difference in mean fixation ratio, self-generated minus provided example. The original's CI and d assume equal group sizes.")
 } else {
-  message("Replication effect size not computed yet: need at least one analysed participant in each frame.")
+  message("Replication effect size not computed yet: need at least two analysed participants in each fixation-source group.")
 }
 ```
 
 ```{r}
 #| label: comparison-verdict
-#| eval: !expr have_data
+#| eval: !expr have_scores
 #| echo: false
 #| results: asis
 if (!is.null(rep)) {
   excludes_zero <- rep$ci_low > 0 | rep$ci_high < 0
   includes_orig <- orig$estimate >= rep$ci_low & orig$estimate <= rep$ci_high
   cat(sprintf(
-    "The replication's 95%% interval %s zero and %s the original estimate of %.0f points. ",
+    "The replication's 95%% interval %s zero and %s the original estimate of %.2f. ",
     if (excludes_zero) "excludes" else "includes",
     if (includes_orig) "includes" else "does not include",
-    100 * orig$estimate))
+    orig$estimate))
   cat("These two facts are the starting point for the summary in the Discussion, not the conclusion.\n")
 }
 ```
@@ -598,11 +701,11 @@ caption. If the original reported no variability, say so rather than leaving it 
 
 ```{r}
 #| label: fig-comparison
-#| eval: !expr have_data
-#| fig-cap: "Percentage choosing the risky program in each frame, original study and Phase 1 replication. Error bars are 95% confidence intervals."
+#| eval: !expr have_scores
+#| fig-cap: "Mean fixation ratio (share of brainstormed concepts rated similar to the initial concept) by fixation source, original study (Leahy et al., 2020, Hypothesis 1 results) and Phase 1 replication. Error bars are 95% confidence intervals; the original's assume equal group sizes."
 #| fig-width: 7
 #| fig-height: 4
-comparison_plot(Original = original, `Phase 1: replication` = risky)
+comparison_plot(Original = original$groups, `Phase 1: replication` = group_summary(scores))
 ```
 
 ### Exploratory analyses
@@ -615,20 +718,20 @@ they generate hypotheses rather than test them.
 :::
 
 ```{r}
-#| label: exploratory-rt
+#| label: exploratory-fluency
 #| eval: !expr have_data
-ld <- trials |>
-  filter(task == "lexical_decision", participant_id %in% keep$participant_id) |>
-  mutate(correct = as.logical(correct), is_word = as.logical(is_word), rt = as.numeric(rt)) |>
-  filter(correct, !is.na(rt))
+# Exploratory: fluency, the number of non-empty concepts each analysed participant brainstormed
+# (final versions of sheets). Not comparable in absolute terms with the original's counts:
+# the brainstorm phase here is shorter, and the original's 7.49 concepts span two phases.
+fluency <- keep |>
+  group_by(`Fixation source` = condition_labels[condition],
+           Problem = if_else(problem == "cup", "No-spill cup", "Bike rack")) |>
+  summarise(n = n(), `Mean concepts` = mean(n_concepts), SD = sd(n_concepts), .groups = "drop")
 
-if (nrow(ld) > 0) {
-  ld |>
-    group_by(`Real word` = is_word) |>
-    summarise(`Mean RT (ms)` = round(mean(rt)), `SD (ms)` = round(sd(rt)), Trials = n(), .groups = "drop") |>
-    knitr::kable(caption = "Exploratory: lexical-decision response times, correct trials only.")
+if (nrow(fluency) > 0) {
+  knitr::kable(fluency, digits = 2, caption = "Exploratory: brainstorm fluency (non-empty concepts per participant).")
 } else {
-  message("No correct lexical-decision trials with a response time yet.")
+  message("No analysed participants yet.")
 }
 ```
 
@@ -738,43 +841,40 @@ have it and the original's otherwise.
 
 ```{r}
 #| label: phase2-power
-phase2_n_per_group <- 150   # planned analysed participants per condition in Phase 2
+phase2_n_per_group <- 150   # planned analysed participants per fixation-source group in Phase 2
 
-p1_counts <- if (have_data) risky_counts(phase1)
-p1_stats  <- if (have_data) diff_ci(p1_counts)
+p1_stats <- if (have_data) key_stats(phase1)
 basis <- if (!is.null(p1_stats)) {
-  list(gain = p1_counts$risky[p1_counts$condition == "gain"] / p1_counts$n[p1_counts$condition == "gain"],
-       loss = p1_counts$risky[p1_counts$condition == "loss"] / p1_counts$n[p1_counts$condition == "loss"],
-       source = "Phase 1")
+  list(sd = sqrt((p1_stats$sd_control^2 + p1_stats$sd_example^2) / 2), d = p1_stats$d, source = "Phase 1")
 } else {
-  list(gain = original_p_gain, loss = original_p_loss, source = "the original study")
+  list(sd = sqrt((original$groups$sd[1]^2 + original$groups$sd[2]^2) / 2), d = orig_key$d, source = "the original study")
 }
 
-# Expected 95% CI half-width on the difference at n per condition.
-half_width <- function(n) 1.96 * sqrt(basis$gain * (1 - basis$gain) / n + basis$loss * (1 - basis$loss) / n)
-power_at <- function(n, p1, p2) {
-  tryCatch(power.prop.test(n = n, p1 = p1, p2 = p2, sig.level = 0.05)$power, error = function(e) NA)
+# Expected 95% CI half-width on the difference in mean fixation ratio at n per group.
+half_width <- function(n) qt(0.975, 2 * n - 2) * basis$sd * sqrt(2 / n)
+power_at <- function(n, d) {
+  tryCatch(power.t.test(n = n, delta = d, sd = 1, sig.level = 0.05)$power, error = function(e) NA)
 }
 
 rows <- tibble(
   Study = c(if (!is.null(p1_stats)) "Phase 1 (actual)", "Phase 2 (planned)"),
   `N analysed` = c(if (!is.null(p1_stats)) p1_stats$N, 2 * phase2_n_per_group),
-  `95% CI half-width` = c(if (!is.null(p1_stats)) sprintf("±%.0f points", 100 * (p1_stats$ci_high - p1_stats$ci_low) / 2),
-                          sprintf("±%.0f points (expected)", 100 * half_width(phase2_n_per_group)))
+  `95% CI half-width` = c(if (!is.null(p1_stats)) sprintf("±%.2f", (p1_stats$ci_high - p1_stats$ci_low) / 2),
+                          sprintf("±%.2f (expected)", half_width(phase2_n_per_group)))
 )
-knitr::kable(rows, caption = sprintf("Precision of the key estimate, Phase 2 expected values based on %s.", basis$source))
+knitr::kable(rows, caption = sprintf("Precision of the key estimate (difference in mean fixation ratio), Phase 2 expected values based on the SD in %s.", basis$source))
 
 tibble(
-  `Effect to detect` = c(sprintf("Original: %.0f points", 100 * (original_p_loss - original_p_gain)),
-                         if (!is.null(p1_stats)) sprintf("Phase 1: %.0f points", 100 * p1_stats$estimate),
-                         sprintf("Half the original: %.0f points", 50 * (original_p_loss - original_p_gain))),
+  `Effect to detect` = c(sprintf("Original: d = %.2f", orig_key$d),
+                         if (!is.null(p1_stats)) sprintf("Phase 1: d = %.2f", p1_stats$d),
+                         sprintf("Half the original: d = %.2f", orig_key$d / 2)),
   `Power at planned N` = scales::percent(c(
-    power_at(phase2_n_per_group, original_p_gain, original_p_loss),
-    if (!is.null(p1_stats)) power_at(phase2_n_per_group, basis$gain, basis$loss),
-    power_at(phase2_n_per_group, original_p_gain, original_p_gain + (original_p_loss - original_p_gain) / 2)
+    power_at(phase2_n_per_group, orig_key$d),
+    if (!is.null(p1_stats)) power_at(phase2_n_per_group, abs(p1_stats$d)),
+    power_at(phase2_n_per_group, orig_key$d / 2)
   ), accuracy = 1)
 ) |>
-  knitr::kable(caption = sprintf("Power of the Phase 2 key test at %d per condition, two-sided alpha = .05.", phase2_n_per_group))
+  knitr::kable(caption = sprintf("Power of the Phase 2 key test at %d per fixation-source group, two-sided alpha = .05 (two-group approximation).", phase2_n_per_group))
 ```
 
 ## Analysis plan
@@ -812,27 +912,28 @@ if (!have_phase2) {
 ```{r}
 #| label: phase2-results
 #| eval: !expr have_phase2
-p2_counts <- risky_counts(phase2)
-p2_stats  <- diff_ci(p2_counts)
+p2_stats <- key_stats(phase2)
 cat(sprintf("Phase 2: %d started, %d completed, %d analysed.\n",
             nrow(phase2$participants), nrow(phase2$complete), nrow(phase2$keep)))
-if (!is.null(p2_stats)) {
+if (is.null(phase2$scores)) {
+  cat("The Phase 2 concepts have not been coded yet (no data/coded/", experiment_id_phase2, "/ratings.csv).\n", sep = "")
+} else if (!is.null(p2_stats)) {
   p_text <- if (p2_stats$p < 0.001) "p < .001" else sprintf("p = %.3f", p2_stats$p)
-  cat(sprintf("Key comparison: %.0f points [%.0f, %.0f], chi-square(1) = %.2f, %s.\n",
-              100 * p2_stats$estimate, 100 * p2_stats$ci_low, 100 * p2_stats$ci_high,
-              p2_stats$statistic, p_text))
+  cat(sprintf("Key comparison: difference %.2f [%.2f, %.2f], F(1, %d) = %.2f, %s, d = %.2f.\n",
+              p2_stats$estimate, p2_stats$ci_low, p2_stats$ci_high,
+              as.integer(p2_stats$df_error), p2_stats$F, p_text, p2_stats$d))
 }
 ```
 
 ```{r}
 #| label: fig-phase2
-#| eval: !expr have_phase2
-#| fig-cap: "Percentage choosing the risky program in each frame: original study, Phase 1 replication, and Phase 2 extension. Error bars are 95% confidence intervals."
+#| eval: !expr have_phase2 && !is.null(phase2$scores)
+#| fig-cap: "Mean fixation ratio by fixation source: original study, Phase 1 replication, and Phase 2 extension. Error bars are 95% confidence intervals; the original's assume equal group sizes."
 #| fig-width: 8
 #| fig-height: 4
-comparison_plot(Original = original,
-                `Phase 1: replication` = if (have_data) risky_counts(phase1),
-                `Phase 2: extension` = risky_counts(phase2))
+comparison_plot(Original = original$groups,
+                `Phase 1: replication` = if (have_scores) group_summary(phase1$scores),
+                `Phase 2: extension` = group_summary(phase2$scores))
 ```
 
 ## Discussion
