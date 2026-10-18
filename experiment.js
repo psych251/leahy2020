@@ -204,7 +204,7 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
       text: "Design a disposable, spill-proof coffee cup. The design should be operable with one " +
         "hand, durable and should not include a mouthpiece or straw.",
       example_text: "Below is an example of a spill proof coffee cup. Please note, the straw will " +
-        "leak when the cup is rotated 90 degrees from the angle shown. The cup will leak if " +
+        "leak when the cup is rotated 90 deg from the angle shown. The cup will leak if " +
         "squeezed and the hot liquid emerging from the straw will burn one's mouth.",
       image: "stimuli/example_cup.png",
       alt: "Example sketch: a styrofoam coffee cup with a plastic top and a tube running from " +
