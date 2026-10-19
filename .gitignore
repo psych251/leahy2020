@@ -51,6 +51,9 @@ original_paper/
 # part of the record and belongs in the repository, like the CSVs. Check it for anything
 # identifying before committing, exactly as you would the free-text columns.
 identifiers.csv
+# Old generated coding pages repeat every sketch already in trials.csv; coding/index.html reads
+# the export directly instead. The coders' ratings CSVs are committed.
+data/coded/*/coding-sheet.html
 
 # OS / editor
 .DS_Store

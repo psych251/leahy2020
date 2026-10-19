@@ -1,0 +1,335 @@
+<!doctype html>
+<!--
+  Similarity coding page (Leahy et al., 2020, "Measuring Fixation").
+
+  Start the local server and open the page; it loads the exported CSVs itself:
+    npm start
+    http://localhost:8000/coding/?experiment=leahy2020-pilot-a          (add &seed=2 for another order)
+  It reads data/raw/<experiment>/participants.csv and trials.csv (from `npm run export`) each
+  time it opens, so it is always up to date with the latest export. Opened straight from disk
+  (file://) the browser will not let it read those files: use "Choose CSV files" instead.
+
+  For every participant who completed the study it shows the initial concept (the provided
+  example, or their own initial sheet) and each brainstorm concept (final versions of
+  non-empty sheets), to be rated similar / not similar to the initial concept. Sets, and the
+  concepts within them, are in a random order fixed by the seed: a participant keeps their
+  place when more data are exported. Condition is not labelled, although the provided example
+  necessarily reveals it.
+
+  It only works on your own computer (localhost, or opened from disk). GitHub Pages publishes
+  everything in this repo, so the copy on the live site shows a notice and loads no data.
+
+  Ratings are kept in this browser per coder and downloaded as ratings_<coder>.csv
+  (participant_id, sheet_number, similar, flag, coder). The reconciled ratings go in
+  data/coded/<experiment>/ratings.csv, which writeup/replication-report.qmd reads.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Similarity coding</title>
+<link rel="icon" href="data:,">
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root { --ink: #1b1b1b; --muted: #5d6166; --line: #d4d7db; --bg: #f6f7f8; --card: #fff;
+          --accent: #1E6E76; --similar: #1E6E76; --not: #8a4b14; --flag: #b3261e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; background: var(--card); border-bottom: 1px solid var(--line);
+           padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+  header h1 { font-size: 16px; margin: 0 auto 0 0; }
+  header input[type=text] { font: inherit; padding: 4px 8px; width: 11em; }
+  button { font: inherit; padding: 5px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #progress { color: var(--muted); font-variant-numeric: tabular-nums; }
+  main { max-width: 1180px; margin: 0 auto; padding: 16px; }
+  .intro, #status { color: var(--muted); max-width: 75ch; }
+  #status.error { color: var(--flag); }
+  #picker { display: none; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+  .set { background: var(--card); border: 1px solid var(--line); border-radius: 8px; margin: 18px 0; padding: 14px 16px; }
+  .set-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .set-head h2 { font-size: 16px; margin: 0; }
+  .set-head .count { color: var(--muted); font-size: 13px; }
+  .problem { font-size: 13px; color: var(--muted); margin: 4px 0 10px; }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; }
+  .initial { position: sticky; top: 64px; align-self: start; border: 2px solid var(--accent); border-radius: 6px; padding: 8px; background: #f2f8f8; }
+  .label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 4px; }
+  img.sketch { display: block; width: 100%; height: auto; border: 1px solid var(--line); background: #fff; }
+  .nosketch { border: 1px dashed var(--line); color: var(--muted); font-size: 13px; padding: 18px; text-align: center; background: #fff; }
+  .desc { white-space: pre-wrap; font-size: 14px; margin-top: 6px; }
+  .concepts { display: grid; gap: 12px; }
+  .concept { border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+  .concept.done { border-color: #9cb9bc; }
+  .choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+  .choices button[aria-pressed="true"][data-v="1"] { background: var(--similar); border-color: var(--similar); color: #fff; }
+  .choices button[aria-pressed="true"][data-v="0"] { background: var(--not); border-color: var(--not); color: #fff; }
+  .choices label { margin-left: auto; font-size: 13px; color: var(--flag); }
+  @media (max-width: 760px) { .row { grid-template-columns: 1fr; } .initial { position: static; } }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Similarity coding</h1>
+  <label>Coder <input id="coder" type="text" placeholder="your initials"></label>
+  <span id="progress"></span>
+  <button id="next">Next unrated</button>
+  <button id="reload">Reload data</button>
+  <button id="load">Load ratings CSV…</button>
+  <input id="ratings-file" type="file" accept=".csv,text/csv" hidden>
+  <button id="download" class="primary">Download ratings</button>
+</header>
+<main>
+  <p class="intro">For each set, compare every concept on the right with that set's <strong>initial concept</strong>
+  on the left, and rate its <em>overall similarity to the initial concept in the set</em>: similar or not similar.
+  Use the flag for a concept that is illegible or uninterpretable. Your ratings are kept in this browser as you go;
+  download them when you finish (and now and then, as a backup).</p>
+  <p id="status">Loading…</p>
+  <div id="picker">
+    <p>Choose the exported <code>participants.csv</code> and <code>trials.csv</code> for this experiment
+    (in <code>data/raw/&lt;experiment&gt;/</code>):</p>
+    <input id="csv-files" type="file" accept=".csv,text/csv" multiple>
+  </div>
+  <div id="sets"></div>
+</main>
+<script>
+(function () {
+  "use strict";
+  // Local use only: on any other host (the GitHub Pages copy of this repo) show a notice and
+  // never request the data.
+  const local = location.protocol === "file:" || ["localhost", "127.0.0.1", "[::1]", "::1"].includes(location.hostname);
+  if (!local) {
+    document.body.innerHTML = '<main id="local-only" style="max-width:60ch;margin:15vh auto;padding:0 16px;font:16px/1.6 system-ui,sans-serif">' +
+      "<h1 style=\"font-size:20px\">Not available online</h1>" +
+      "<p>This coding page is for the research team and only runs on a computer with a copy of the repository " +
+      "(<code>npm start</code>, then http://localhost:8000/coding/).</p></main>";
+    return;
+  }
+  const params = new URLSearchParams(location.search);
+  const experimentId = params.get("experiment") || "leahy2020-pilot-a";
+  const seed = params.get("seed") || "1";
+  document.getElementById("title").textContent = "Similarity coding: " + experimentId;
+  document.title = "Similarity coding: " + experimentId;
+
+  // The design problems and example sketches, as in experiment.js (Leahy et al., 2020, Materials).
+  const PROBLEMS = {
+    cup: { text: "Design a disposable, spill-proof coffee cup. The design should be operable with one hand, durable and should not include a mouthpiece or straw.",
+           image: "../stimuli/example_cup.png" },
+    bike: { text: "Design a car-mounted bicycle rack that addresses the following needs: (1) Easy mounting of the bicycle, (2) Easy mounting of the rack, (3) Cannot harm bike or car, and (4) Must be versatile for all bikes and cars.",
+            image: "../stimuli/example_bike_rack.png" },
+  };
+
+  // Same parser as scripts/csv.js: quoted fields may hold commas, quotes and newlines.
+  function parseCsv(text) {
+    const rows = [];
+    let row = [], field = "", inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+        else if (c === '"') inQuotes = false;
+        else field += c;
+      } else if (c === '"') inQuotes = true;
+      else if (c === ",") { row.push(field); field = ""; }
+      else if (c === "\n" || c === "\r") {
+        if (c === "\r" && text[i + 1] === "\n") i++;
+        row.push(field); rows.push(row); row = []; field = "";
+      } else field += c;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    const [header, ...body] = rows;
+    return body.filter((r) => r.length > 1).map((r) => Object.fromEntries(header.map((h, j) => [h, r[j] ?? ""])));
+  }
+
+  // Order key: a hash of seed + id, so each participant (and concept) keeps its place in the
+  // order when more participants are exported, and a different seed gives a different order.
+  function hash(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
+    return h >>> 0;
+  }
+  const byHash = (keyFn) => (a, b) => hash(seed + "|" + keyFn(a)) - hash(seed + "|" + keyFn(b));
+
+  // Build the concept sets from the two CSVs.
+  function buildSets(participantsCsv, trialsCsv) {
+    const trials = parseCsv(trialsCsv);
+    const participants = parseCsv(participantsCsv).filter((p) => p.completed === "true" && PROBLEMS[p.problem]);
+    const final = new Map();      // final version: highest revision per participant, phase, sheet
+    for (const t of trials) {
+      if (t.task !== "concept_sheet") continue;
+      const key = [t.participant_id, t.phase, t.sheet_number].join("\u0000");
+      if (!final.has(key) || Number(t.revision || 1) > Number(final.get(key).revision || 1)) final.set(key, t);
+    }
+    const sheets = {};
+    for (const t of final.values()) {
+      if (t.empty === "true") continue;
+      ((sheets[t.participant_id] ||= {})[t.phase] ||= []).push(
+        { sheet_number: Number(t.sheet_number), sketch: t.sketch || null, description: t.description || "" });
+    }
+    const sets = [];
+    let skipped = 0;
+    for (const p of participants) {
+      const own = sheets[p.participant_id] || {};
+      const concepts = own.brainstorm || [];
+      if (!concepts.length) continue;
+      let initial;
+      if (p.condition === "example") initial = { sketch: PROBLEMS[p.problem].image, description: "" };
+      else if (own.initial && own.initial.length) initial = own.initial[0];
+      else { skipped++; continue; }   // no initial concept to compare with (excluded in the report)
+      concepts.sort(byHash((c) => p.participant_id + "|" + c.sheet_number));
+      sets.push({ participant_id: p.participant_id, problem: PROBLEMS[p.problem].text, initial, concepts });
+    }
+    sets.sort(byHash((s) => s.participant_id));
+    return { sets, skipped, nTrials: trials.length };
+  }
+
+  // ---- ratings, kept per coder in this browser ----------------------------------------
+  const coderEl = document.getElementById("coder");
+  const storeKey = () => "coding:" + experimentId + ":" + coderEl.value.trim();
+  const keyOf = (pid, n) => pid + "|" + n;
+  let ratings = {};
+  let sets = [];
+  function loadRatings() {
+    try { ratings = JSON.parse(localStorage.getItem(storeKey()) || "{}"); } catch (e) { ratings = {}; }
+  }
+  function saveRatings() {
+    try { localStorage.setItem(storeKey(), JSON.stringify(ratings)); } catch (e) { /* download still works */ }
+  }
+  try { coderEl.value = localStorage.getItem("coding:last-coder") || ""; } catch (e) {}
+  loadRatings();
+
+  const el = (tag, attrs, ...kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v);
+    for (const k of kids) n.append(k);
+    return n;
+  };
+  const sketch = (src) => src ? el("img", { class: "sketch", src: src, alt: "sketch" }) : el("div", { class: "nosketch" }, "No sketch");
+  const total = () => sets.reduce((n, s) => n + s.concepts.length, 0);
+
+  function render() {
+    const root = document.getElementById("sets");
+    root.replaceChildren();
+    sets.forEach((s, i) => {
+      const initial = el("div", { class: "initial" }, el("div", { class: "label" }, "Initial concept"), sketch(s.initial.sketch));
+      if (s.initial.description) initial.append(el("div", { class: "desc" }, s.initial.description));
+      const list = el("div", { class: "concepts" });
+      s.concepts.forEach((c, j) => {
+        const k = keyOf(s.participant_id, c.sheet_number);
+        const card = el("div", { class: "concept", "data-key": k },
+          el("div", { class: "label" }, "Concept " + (j + 1) + " of " + s.concepts.length), sketch(c.sketch),
+          el("div", { class: "desc" }, c.description || "(no description)"));
+        const yes = el("button", { type: "button", "data-v": "1", "aria-pressed": "false" }, "Similar");
+        const no = el("button", { type: "button", "data-v": "0", "aria-pressed": "false" }, "Not similar");
+        const flag = el("input", { type: "checkbox" });
+        card.append(el("div", { class: "choices" }, yes, no, el("label", {}, flag, " Illegible / uninterpretable")));
+        const paint = () => {
+          const r = ratings[k] || {};
+          yes.setAttribute("aria-pressed", String(r.similar === 1));
+          no.setAttribute("aria-pressed", String(r.similar === 0));
+          flag.checked = !!r.flag;
+          card.classList.toggle("done", r.similar === 0 || r.similar === 1);
+        };
+        const set = (patch) => { ratings[k] = Object.assign({ similar: null, flag: false }, ratings[k], patch); saveRatings(); paint(); progress(); };
+        yes.onclick = () => set({ similar: ratings[k] && ratings[k].similar === 1 ? null : 1 });
+        no.onclick = () => set({ similar: ratings[k] && ratings[k].similar === 0 ? null : 0 });
+        flag.onchange = () => set({ flag: flag.checked });
+        card._paint = paint;
+        paint();
+        list.append(card);
+      });
+      root.append(el("section", { class: "set", id: "set-" + (i + 1) },
+        el("div", { class: "set-head" }, el("h2", {}, "Set " + (i + 1) + " of " + sets.length),
+          el("span", { class: "count" }, s.concepts.length + " concepts")),
+        el("div", { class: "problem" }, "Problem: " + s.problem),
+        el("div", { class: "row" }, initial, list)));
+    });
+    progress();
+  }
+  function repaint() { document.querySelectorAll(".concept").forEach((c) => c._paint()); progress(); }
+  function progress() {
+    const keys = new Set(sets.flatMap((s) => s.concepts.map((c) => keyOf(s.participant_id, c.sheet_number))));
+    const done = [...keys].filter((k) => ratings[k] && (ratings[k].similar === 0 || ratings[k].similar === 1)).length;
+    document.getElementById("progress").textContent = done + " of " + keys.size + " rated";
+  }
+
+  // ---- loading the data ---------------------------------------------------------------
+  const statusEl = document.getElementById("status");
+  function show(built, source) {
+    sets = built.sets;
+    statusEl.classList.remove("error");
+    statusEl.textContent = "Loaded " + sets.length + " concept sets, " + total() + " concepts, from " + source +
+      (built.skipped ? " (" + built.skipped + " control participant(s) skipped: no initial concept to compare with)" : "") +
+      ". Order seed: " + seed + ".";
+    document.getElementById("picker").style.display = "none";
+    render();
+  }
+  async function fetchData() {
+    statusEl.textContent = "Loading…";
+    const base = "../data/raw/" + encodeURIComponent(experimentId) + "/";
+    try {
+      const [p, t] = await Promise.all(["participants.csv", "trials.csv"].map(async (f) => {
+        const r = await fetch(base + f, { cache: "no-store" });
+        if (!r.ok) throw new Error(f + ": " + r.status);
+        return r.text();
+      }));
+      show(buildSets(p, t), "data/raw/" + experimentId + "/");
+    } catch (e) {
+      statusEl.classList.add("error");
+      statusEl.textContent = location.protocol === "file:"
+        ? "This page was opened from disk, so it cannot read the CSVs itself. Run `npm start` and open " +
+          "http://localhost:8000/coding/?experiment=" + experimentId + ", or choose the files below."
+        : "Could not load data/raw/" + experimentId + "/ (" + e.message + "). Export first " +
+          "(npm run export -- --experiment " + experimentId + " --key <path>), check ?experiment= in the address, or choose the files below.";
+      document.getElementById("picker").style.display = "block";
+    }
+  }
+  document.getElementById("csv-files").onchange = async (ev) => {
+    const files = [...ev.target.files];
+    const find = (name) => files.find((f) => f.name === name);
+    if (!find("participants.csv") || !find("trials.csv")) {
+      statusEl.textContent = "Choose both participants.csv and trials.csv (select them together).";
+      return;
+    }
+    show(buildSets(await find("participants.csv").text(), await find("trials.csv").text()), "the chosen files");
+  };
+  document.getElementById("reload").onclick = fetchData;
+
+  // ---- header buttons -----------------------------------------------------------------
+  coderEl.addEventListener("change", () => {
+    try { localStorage.setItem("coding:last-coder", coderEl.value.trim()); } catch (e) {}
+    loadRatings(); repaint();
+  });
+  document.getElementById("next").onclick = () => {
+    const card = [...document.querySelectorAll(".concept")].find((c) => !c.classList.contains("done"));
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  document.getElementById("download").onclick = () => {
+    const coder = coderEl.value.trim();
+    if (!coder) { alert("Enter your initials in the Coder box first."); coderEl.focus(); return; }
+    const lines = ["participant_id,sheet_number,similar,flag,coder"];
+    for (const s of sets) for (const c of s.concepts) {
+      const r = ratings[keyOf(s.participant_id, c.sheet_number)] || {};
+      lines.push([s.participant_id, c.sheet_number, r.similar === 0 || r.similar === 1 ? r.similar : "", r.flag ? 1 : 0, coder].join(","));
+    }
+    const a = el("a", { href: URL.createObjectURL(new Blob([lines.join("\n") + "\n"], { type: "text/csv" })),
+                        download: "ratings_" + coder.replace(/[^A-Za-z0-9_-]/g, "") + ".csv" });
+    document.body.append(a); a.click(); a.remove();
+  };
+  // Resume from a downloaded file, e.g. in another browser or after the coding sheet moved here.
+  const ratingsFile = document.getElementById("ratings-file");
+  document.getElementById("load").onclick = () => ratingsFile.click();
+  ratingsFile.onchange = async () => {
+    const rows = parseCsv(await ratingsFile.files[0].text());
+    for (const r of rows) {
+      ratings[keyOf(r.participant_id, r.sheet_number)] =
+        { similar: r.similar === "1" ? 1 : r.similar === "0" ? 0 : null, flag: r.flag === "1" };
+    }
+    saveRatings(); repaint(); ratingsFile.value = "";
+  };
+
+  fetchData();
+})();
+</script>
+</body>
+</html>

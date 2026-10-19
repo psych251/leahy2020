@@ -329,7 +329,7 @@ fmt_row <- function(study, r, missing = "not yet collected") {
 }
 phase_row <- function(study, have, d) {
   if (!have) return(fmt_row(study, NULL))
-  fmt_row(study, key_stats(d), missing = if (is.null(d$scores)) "awaiting coding" else "too few analysed")
+  fmt_row(study, key_stats(d), missing = if (is.null(d$scores) || nrow(d$scores) == 0) "awaiting coding" else "too few analysed")
 }
 bind_rows(
   fmt_row("Original", key_original()),
