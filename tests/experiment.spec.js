@@ -14,7 +14,7 @@ const { test, expect, devices } = require("@playwright/test");
 
 const EMULATOR = process.env.EMULATOR === "1" || !!process.env.FIRESTORE_EMULATOR_HOST;
 const PROJECT = "demo-psych251";
-const EXPERIMENT_ID = "leahy2020-pilot-a";
+const EXPERIMENT_ID = "leahy2020-pilot-b";
 const FS = `http://localhost:8080/v1/projects/${PROJECT}/databases/(default)/documents`;
 
 // Draw one stroke across the sketch box of the current concept sheet.
