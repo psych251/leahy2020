@@ -22,8 +22,12 @@
  *              Shorter than the original's 6 / 3 / 3 / 3 / 30 min (Leahy et al., 2020, Fig. 4).
  *              Every phase is a maximum: a countdown shows the time left, the participant can
  *              move on early, and the phase ends by itself when time is up (`end_reason`).
- *   Random:    condition and problem each by sampleWithoutReplacement, independently
- *              (no exact counterbalancing, so cell sizes will vary).
+ *   Assignment: balanced. After consent, each participant takes the next slot of a shared
+ *              counter in Firestore (DataSaver.nextAssignmentIndex), and slots map to the four
+ *              cells in shuffled blocks of four (cellFor), so every four consecutive participants
+ *              cover all four cells. If the counter cannot be reached, the cell is random.
+ *              Recorded as `assignment_method` ("counter" | "random_fallback" | "forced_test")
+ *              and `assignment_index` (the slot) on the participant document.
  *   Exclusion: not yet decided (see the report's analysis plan). No attention check.
  */
 
@@ -48,7 +52,7 @@ const EXPERIMENT = {
 
   // Prolific: if set, participants are redirected to Prolific when they finish.
   // Leave empty for local testing or non-Prolific samples.
-  prolific_completion_code: "",
+  prolific_completion_code: "CYVQ7HUS",
 
   // Contact shown in consent and debrief.
   contact_email: "stanfordpsych251@gmail.com",
@@ -75,7 +79,9 @@ const EXPERIMENT = {
 // False on phones and tablets without a pointing device, which are also the devices with no
 // physical keyboard. See docs/student-guide.md "Devices".
 function hasFinePointer() {
-  return !!(window.matchMedia && window.matchMedia("(any-pointer: fine)").matches);
+  return !!(
+    window.matchMedia && window.matchMedia("(any-pointer: fine)").matches
+  );
 }
 
 // `?emulator=1` in the URL sends data to the local emulator instead of the real project.
@@ -83,10 +89,12 @@ function hasFinePointer() {
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const USE_EMULATOR = URL_PARAMS.get("emulator") === "1";
 // `?chunk_size=N` overrides the setting above; used by the test suite to exercise chunked writes.
-const CHUNK_SIZE = Number(URL_PARAMS.get("chunk_size")) || EXPERIMENT.chunk_size;
+const CHUNK_SIZE =
+  Number(URL_PARAMS.get("chunk_size")) || EXPERIMENT.chunk_size;
 // Test-only: `?cc=CODE` sets a Prolific completion code during emulator runs, so the test
 // suite can check the screen a participant sees once you have set yours. Ignored in live runs.
-if (USE_EMULATOR && URL_PARAMS.get("cc")) EXPERIMENT.prolific_completion_code = URL_PARAMS.get("cc");
+if (USE_EMULATOR && URL_PARAMS.get("cc"))
+  EXPERIMENT.prolific_completion_code = URL_PARAMS.get("cc");
 // Test-only: `?time_scale=0.01` shrinks every phase, and `?condition=example|control` and
 // `?problem=cup|bike` force the assignment, so the test suite can reach the time limits and
 // every cell. Ignored in live runs.
@@ -111,7 +119,10 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
 
   // Record the device verdict on the participant document before anything else, so a
   // participant turned away below is still visible in the data rather than simply absent.
-  saver.updateParticipant({ device_supported: deviceSupported, requires_keyboard: EXPERIMENT.requires_keyboard });
+  saver.updateParticipant({
+    device_supported: deviceSupported,
+    requires_keyboard: EXPERIMENT.requires_keyboard,
+  });
 
   if (!deviceSupported) {
     document.body.innerHTML =
@@ -122,7 +133,11 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
       "<p>Please reopen this link on a laptop or desktop computer. If you were sent here from " +
       "Prolific, you can return the study and take it later on a computer; nothing has been recorded " +
       "against you.</p>" +
-      "<p>Questions: <a href=\"mailto:" + EXPERIMENT.contact_email + "\">" + EXPERIMENT.contact_email + "</a></p></div>";
+      '<p>Questions: <a href="mailto:' +
+      EXPERIMENT.contact_email +
+      '">' +
+      EXPERIMENT.contact_email +
+      "</a></p></div>";
     return;
   }
 
@@ -137,40 +152,61 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
     // sheets does not move it (a brainstorm can have any number of sheets).
     auto_update_progress_bar: false,
     on_trial_finish: (data) => {
-      // Moving between concept sheets (new sheet, go to another) is not progress through the study.
-      if (data.task === "concept_sheet" && !["finished", "time_up"].includes(data.end_reason)) return;
+      // Moving between concept sheets (new sheet, go to another) is not progress through the
+      // study, and neither is the moment's wait while the condition is assigned.
+      if (data.task === "assignment") return;
+      if (
+        data.task === "concept_sheet" &&
+        !["finished", "time_up"].includes(data.end_reason)
+      )
+        return;
       stepsDone += 1;
       jsPsych.progressBar.progress = Math.min(1, stepsDone / N_STEPS);
     },
     on_data_update: (trial) => saver.onTrial(trial),
     on_finish: async () => {
       const el = jsPsych.getDisplayElement();
-      el.innerHTML = '<div id="finish-message"><p class="thanks">Saving your responses…</p></div>';
+      el.innerHTML =
+        '<div id="finish-message"><p class="thanks">Saving your responses…</p></div>';
       // finish() flushes remaining trials, marks the participant complete, and (only if
       // saving failed) appends a download-fallback box to the display element.
       const result = await saver.finish(jsPsych);
-      const consentRow = jsPsych.data.get().filter({ task: "consent" }).values()[0];
+      const consentRow = jsPsych.data
+        .get()
+        .filter({ task: "consent" })
+        .values()[0];
       const consented = !consentRow || consentRow.consented !== false;
       const msg = document.getElementById("finish-message");
 
       if (!consented) {
-        msg.innerHTML = "<h2 class='thanks'>Thank you</h2><p class='thanks'>You chose not to participate. " +
-          "You may close this window" + (EXPERIMENT.prolific_completion_code ? " and return the study on Prolific" : "") + ".</p>";
+        msg.innerHTML =
+          "<h2 class='thanks'>Thank you</h2><p class='thanks'>You chose not to participate. " +
+          "You may close this window" +
+          (EXPERIMENT.prolific_completion_code
+            ? " and return the study on Prolific"
+            : "") +
+          ".</p>";
         return;
       }
       if (result.ok && EXPERIMENT.prolific_completion_code && !USE_EMULATOR) {
-        msg.innerHTML = "<p class='thanks'>Saved. Returning you to Prolific…</p>";
+        msg.innerHTML =
+          "<p class='thanks'>Saved. Returning you to Prolific…</p>";
         window.location.href =
-          "https://app.prolific.com/submissions/complete?cc=" + EXPERIMENT.prolific_completion_code;
+          "https://app.prolific.com/submissions/complete?cc=" +
+          EXPERIMENT.prolific_completion_code;
         return;
       }
       // In emulator/test runs we stay on the page instead of navigating to Prolific, so that
       // setting a completion code can never turn `npm test` or CI red. Live runs redirect above.
       msg.innerHTML =
         "<h2 class='thanks'>All done</h2>" +
-        (result.ok ? "<p class='thanks'>Your responses were saved. Thank you for participating!</p>" : "") +
+        (result.ok
+          ? "<p class='thanks'>Your responses were saved. Thank you for participating!</p>"
+          : "") +
         (EXPERIMENT.prolific_completion_code
-          ? "<p class='thanks'>Your completion code is <strong>" + EXPERIMENT.prolific_completion_code + "</strong>.</p>"
+          ? "<p class='thanks'>Your completion code is <strong>" +
+            EXPERIMENT.prolific_completion_code +
+            "</strong>.</p>"
           : "");
     },
   });
@@ -183,17 +219,9 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
     experiment_id: EXPERIMENT.id,
   });
 
-  // Random assignment to fixation source and design problem, recorded on every trial and on
-  // the participant document. (For exact counterbalancing you would need a server; random
-  // assignment is fine at course sample sizes.)
-  const condition = ["example", "control"].includes(FORCED_CONDITION)
-    ? FORCED_CONDITION
-    : jsPsych.randomization.sampleWithoutReplacement(["example", "control"], 1)[0];
-  const problem = ["cup", "bike"].includes(FORCED_PROBLEM)
-    ? FORCED_PROBLEM
-    : jsPsych.randomization.sampleWithoutReplacement(["cup", "bike"], 1)[0];
-  jsPsych.data.addProperties({ condition: condition, problem: problem });
-  saver.updateParticipant({ condition: condition, problem: problem });
+  // Fixation source x design problem, assigned right after consent (see `assignment` below),
+  // so that participants turned away or declining never use up a slot.
+  const assigned = { condition: null, problem: null };
 
   const phaseMs = (name) => EXPERIMENT.minutes[name] * 60000 * TIME_SCALE;
 
@@ -201,33 +229,68 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
   // Jansson & Smith (1991), Fig. 1 of the paper.
   const PROBLEMS = {
     cup: {
-      text: "Design a disposable, spill-proof coffee cup. The design should be operable with one " +
+      text:
+        "Design a disposable, spill-proof coffee cup. The design should be operable with one " +
         "hand, durable and should not include a mouthpiece or straw.",
-      example_text: "Below is an example of a spill proof coffee cup. Please note, the straw will " +
+      example_text:
+        "Below is an example of a spill proof coffee cup. Please note, the straw will " +
         "leak when the cup is rotated 90 deg from the angle shown. The cup will leak if " +
         "squeezed and the hot liquid emerging from the straw will burn one's mouth.",
       image: "stimuli/example_cup.png",
-      alt: "Example sketch: a styrofoam coffee cup with a plastic top and a tube running from " +
+      alt:
+        "Example sketch: a styrofoam coffee cup with a plastic top and a tube running from " +
         "inside the cup to a mouthpiece",
     },
     bike: {
-      text: "Design a car-mounted bicycle rack that addresses the following needs: (1) Easy " +
+      text:
+        "Design a car-mounted bicycle rack that addresses the following needs: (1) Easy " +
         "mounting of the bicycle, (2) Easy mounting of the rack, (3) Cannot harm bike or car, " +
         "and (4) Must be versatile for all bikes and cars.",
-      example_text: "Below is an example of a present day bike rack. The bicycle is set in the " +
+      example_text:
+        "Below is an example of a present day bike rack. The bicycle is set in the " +
         "rails and the vinyl coated hook is attached to the seat tube of the bike, and then the " +
         "hook is tightened down by hand with a wing nut. One should note the difficulty of " +
         "mounting the middle bikes on the rack.",
       image: "stimuli/example_bike_rack.png",
-      alt: "Example sketch: a roof rack with rails across a car roof and upright hooks holding " +
+      alt:
+        "Example sketch: a roof rack with rails across a car roof and upright hooks holding " +
         "bicycles by the seat tube",
     },
   };
-  const P = PROBLEMS[problem];
-  const problemBox = `<div class="design-problem"><strong>Design problem:</strong> ${P.text}</div>`;
+  // The assigned problem's materials. Functions, because the cell is only known after consent;
+  // jsPsych evaluates them when each trial starts.
+  const P = () => PROBLEMS[assigned.problem];
+  const problemBox = () =>
+    `<div class="design-problem"><strong>Design problem:</strong> ${P().text}</div>`;
 
-  // Fetch the example image now, so it is on screen the moment the example phase starts.
-  if (condition === "example") new Image().src = P.image;
+  // Balanced assignment. Slot i of the shared counter maps to a cell: slots come in blocks of
+  // four, each block holding all four cells in an order shuffled by a seed made from the
+  // experiment id and the block number, so the sequence is reproducible from the data but not
+  // a fixed rotation.
+  const CELLS = [
+    ["example", "cup"],
+    ["example", "bike"],
+    ["control", "cup"],
+    ["control", "bike"],
+  ];
+  function cellFor(index) {
+    let h = 2166136261;
+    for (const ch of EXPERIMENT.id + ":" + Math.floor(index / 4))
+      h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    const rand = () =>
+      ((h =
+        Math.imul(h ^ (h >>> 15), 2246822507) ^
+        Math.imul(h ^ (h >>> 13), 3266489909)) >>>
+        0) /
+      4294967296;
+    const order = CELLS.slice();
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    return order[index % 4];
+  }
+  window.__cellFor = cellFor; // for the automated test
 
   // -------------------------------------------------------------------------
   // 1. Consent (course-wide IRB text; edit only the contact address)
@@ -257,6 +320,52 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
     },
   };
 
+  // Takes the next counter slot (a moment's wait on a "Loading" screen) and records the cell.
+  const assignment = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '<p class="thanks">Loading…</p>',
+    choices: "NO_KEYS",
+    data: { task: "assignment" },
+    on_load: async () => {
+      let method,
+        index = null,
+        cell;
+      if (
+        ["example", "control"].includes(FORCED_CONDITION) &&
+        ["cup", "bike"].includes(FORCED_PROBLEM)
+      ) {
+        method = "forced_test";
+        cell = [FORCED_CONDITION, FORCED_PROBLEM];
+      } else {
+        index = await saver.nextAssignmentIndex();
+        if (index === null) {
+          method = "random_fallback";
+          cell = jsPsych.randomization.sampleWithoutReplacement(CELLS, 1)[0];
+        } else {
+          method = "counter";
+          cell = cellFor(index);
+        }
+      }
+      [assigned.condition, assigned.problem] = cell;
+      jsPsych.data.addProperties({
+        condition: assigned.condition,
+        problem: assigned.problem,
+      });
+      saver.updateParticipant({
+        condition: assigned.condition,
+        problem: assigned.problem,
+        assignment_method: method,
+        assignment_index: index,
+      });
+      // Fetch the example image now, so it is on screen the moment the example phase starts.
+      if (assigned.condition === "example") new Image().src = P().image;
+      jsPsych.finishTrial({
+        assignment_method: method,
+        assignment_index: index,
+      });
+    },
+  };
+
   // -------------------------------------------------------------------------
   // 2. Welcome
   // -------------------------------------------------------------------------
@@ -282,7 +391,8 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
     let interval = null;
     return {
       type: jsPsychHtmlButtonResponse,
-      stimulus: `<div class="concept-timer" id="page-timer" aria-live="polite"></div>${html}`,
+      stimulus: () =>
+        `<div class="concept-timer" id="page-timer" aria-live="polite"></div>${typeof html === "function" ? html() : html}`,
       choices: [button],
       trial_duration: ms,
       data: { task: task },
@@ -291,7 +401,11 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
         const el = document.getElementById("page-timer");
         const tick = () => {
           const s = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
-          el.textContent = "Time remaining: " + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+          el.textContent =
+            "Time remaining: " +
+            Math.floor(s / 60) +
+            ":" +
+            String(s % 60).padStart(2, "0");
           el.classList.toggle("warning", s <= 60);
         };
         tick();
@@ -310,7 +424,12 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
   // nothing is lost if they leave mid-phase; the last revision of each sheet is its final version.
   function conceptPhase(phase, ms, header, opts = {}) {
     // sheets[i] holds what sheet i+1 contains, so it can be restored when revisited.
-    const state = { deadline: null, sheets: [{ strokes: [], description: "", visits: 0 }], current: 0, done: false };
+    const state = {
+      deadline: null,
+      sheets: [{ strokes: [], description: "", visits: 0 }],
+      current: 0,
+      done: false,
+    };
     const cur = () => state.sheets[state.current];
     const sheet = {
       type: jsPsychConceptSheet,
@@ -321,7 +440,11 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
       data: { task: "concept_sheet", phase: phase },
       // Sketches are big; the header is the same on every sheet, and the restored strokes are
       // already in the previous revision's sketch, so none of these need repeating in the data.
-      save_trial_parameters: { header: false, initial_strokes: false, initial_description: false },
+      save_trial_parameters: {
+        header: false,
+        initial_strokes: false,
+        initial_description: false,
+      },
       // The phase clock starts with its first sheet.
       deadline: () => {
         if (state.deadline === null) state.deadline = Date.now() + ms;
@@ -358,24 +481,39 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
   const initialExample = timedPage(
     "example_view",
     phaseMs("initial"),
-    `<div class="design-task">
-       ${problemBox}
-       <p>${P.example_text}</p>
-       <img class="example-sketch" src="${P.image}" alt="${P.alt}">
+    () => `<div class="design-task">
+       ${problemBox()}
+       <p>${P().example_text}</p>
+       <img class="example-sketch" src="${P().image}" alt="${P().alt}">
        <p>Please study the problem and this example. You will be asked to come up with your own
        designs later.</p>
      </div>`,
-    "Continue"
+    "Continue",
   );
   const initialOwn = conceptPhase(
     "initial",
     phaseMs("initial"),
-    `<div class="design-task">${problemBox}
+    () => `<div class="design-task">${problemBox()}
        <p>Sketch and describe your own initial design for this problem on the colored concept
        sheet below.</p></div>`,
-    { allow_new_sheet: false, finish_label: "I'm finished with my initial design", sheet_class: "initial" }
+    {
+      allow_new_sheet: false,
+      finish_label: "I'm finished with my initial design",
+      sheet_class: "initial",
+    },
   );
-  const initialPhase = condition === "example" ? initialExample : initialOwn;
+  const initialPhase = {
+    timeline: [
+      {
+        timeline: [initialExample],
+        conditional_function: () => assigned.condition === "example",
+      },
+      {
+        timeline: [initialOwn],
+        conditional_function: () => assigned.condition === "control",
+      },
+    ],
+  };
 
   // -------------------------------------------------------------------------
   // 4. Introduction to idea generation (2 min). Fixation is deliberately not mentioned.
@@ -397,7 +535,7 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
          and you can go back to edit any sheet using the <em>Go to</em> list above it.</li>
        </ul>
      </div>`,
-    "Continue"
+    "Continue",
   );
 
   // -------------------------------------------------------------------------
@@ -418,7 +556,7 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
        </ol>
        <p>Next, you will practice brainstorming on a practice problem for a few minutes.</p>
      </div>`,
-    "Continue"
+    "Continue",
   );
 
   // -------------------------------------------------------------------------
@@ -430,7 +568,7 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
     `<div class="design-task">
        <div class="design-problem"><strong>Practice problem:</strong> Design a seating device.</div>
        <p>Practice individual brainstorming: create as many concepts as you can, one per sheet.</p>
-     </div>`
+     </div>`,
   );
 
   // -------------------------------------------------------------------------
@@ -438,9 +576,9 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
   // -------------------------------------------------------------------------
   const brainstormIntro = {
     type: jsPsychInstructions,
-    pages: [
+    pages: () => [
       `<h2>Design problem</h2>
-       ${problemBox}
+       ${problemBox()}
        <p>Now create concepts for this design problem using individual brainstorming, or any other
        method you prefer. Draw and describe each concept on its own sheet. You have up to
        ${EXPERIMENT.minutes.brainstorm} minutes; the timer starts when you continue.</p>`,
@@ -451,7 +589,7 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
   const brainstorm = conceptPhase(
     "brainstorm",
     phaseMs("brainstorm"),
-    `<div class="design-task">${problemBox}</div>`
+    () => `<div class="design-task">${problemBox()}</div>`,
   );
 
   // -------------------------------------------------------------------------
@@ -473,6 +611,7 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
 
   await jsPsych.run([
     consent,
+    assignment,
     instructions,
     initialPhase,
     introIdeaGeneration,

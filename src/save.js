@@ -26,6 +26,7 @@
   const MAX_ERRORS_PER_SESSION = 20;
   const AUTH_TIMEOUT_MS = 12000;
   const MAX_FULL_DATA_BYTES = 800000; // stay under Firestore's 1 MiB document limit
+  const ASSIGN_TIMEOUT_MS = 8000;      // nextAssignmentIndex(): wait this long, then go random
   const FINISH_TIMEOUT_MS = 20000; // if writes are still pending after this, offer the download instead of hanging
 
   function pad(n, width) {
@@ -298,6 +299,32 @@
       if (!ok) this._offerDownload(jsPsych, full);
       return { ok: ok, mode: this.mode, failed: failed, uid: this.uid, participant_id: this.docId,
                stats: Object.assign({}, this.stats) };
+    }
+
+    /**
+     * Take the next slot of the experiment's shared assignment counter
+     * (experiments/<id>/assignment/counter, a single number `n`). A transaction reads n and
+     * writes n + 1, so two participants arriving together never get the same slot. Returns
+     * the slot (0, 1, 2, ...), or null if offline, refused, or not answered in time; the
+     * caller then falls back to random assignment.
+     */
+    async nextAssignmentIndex() {
+      if (this.mode === "offline") return null;
+      const fb = this.fb;
+      const ref = fb.doc(this.db, "experiments", this.opts.experiment_id, "assignment", "counter");
+      try {
+        return await withTimeout(fb.runTransaction(this.db, async (tx) => {
+          const snap = await tx.get(ref);
+          const n = snap.exists() ? snap.data().n : 0;
+          if (snap.exists()) tx.update(ref, { n: n + 1 });
+          else tx.set(ref, { n: 1 });
+          return n;
+        }), ASSIGN_TIMEOUT_MS, "assignment counter");
+      } catch (e) {
+        console.warn("[DataSaver] assignment counter unavailable, falling back to random:", e && (e.code || e.message));
+        this.logError(e, { kind: "assignment" });
+        return null;
+      }
     }
 
     /** Report an error to the errors collection (also used for uncaught errors). */

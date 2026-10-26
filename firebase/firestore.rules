@@ -7,6 +7,9 @@ rules_version = '2';
 //   2. A participant may only CREATE documents under their own uid.
 //   3. Nobody can READ anything from the browser. You read your data with
 //      scripts/export.js, which uses the Admin SDK and bypasses these rules.
+// One exception, for balanced assignment to conditions: each experiment has a single counter
+// document that any participant may read and increase by exactly 1 (see the end of this file).
+// It holds one number and no participant data.
 //
 // Do NOT loosen these to `allow read, write: if true` while debugging. Use the
 // emulator (`npm run emulators`) instead; it logs every denied request.
@@ -56,6 +59,21 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.size() < 50000;
       allow read, update, delete: if false;
+    }
+
+    // Balanced assignment: experiments/<id>/assignment/counter holds one field, `n`, the number
+    // of participants assigned so far. A participant may read it and move it forward by exactly
+    // one (src/save.js nextAssignmentIndex(), in a transaction). It cannot be set to any other
+    // value, given other fields, listed, or deleted.
+    match /experiments/{experimentId}/assignment/{docId} {
+      function counterOnly() {
+        return signedIn() && docId == "counter"
+          && request.resource.data.keys().hasOnly(["n"]) && request.resource.data.n is int;
+      }
+      allow get: if signedIn() && docId == "counter";
+      allow create: if counterOnly() && request.resource.data.n == 1;
+      allow update: if counterOnly() && request.resource.data.n == resource.data.n + 1;
+      allow list, delete: if false;
     }
 
     // Everything else is closed.

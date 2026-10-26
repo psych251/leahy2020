@@ -10,6 +10,7 @@ export {
   setDoc,
   addDoc,
   getDoc,
+  runTransaction,
   serverTimestamp,
   connectFirestoreEmulator,
 } from "firebase/firestore";

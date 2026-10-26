@@ -147,7 +147,9 @@ test.describe("experiment", () => {
     const stats = await page.evaluate(() => window.__saver.stats);
 
     if (!EMULATOR) {
-      // Offline: banner + download fallback, nothing else to check.
+      // Offline: no counter to reach, so the cell is random; banner + download fallback.
+      const a = await page.evaluate(() => window.__saver.allTrials.find((t) => t.task === "assignment"));
+      expect(a.assignment_method).toBe("random_fallback");
       await expect(page.locator("#data-saver-banner")).toHaveAttribute("data-kind", "offline");
       await expect(page.locator("#data-saver-fallback")).toBeVisible();
       return;
@@ -163,6 +165,10 @@ test.describe("experiment", () => {
     expect(pdoc.completed).toBe(true);
     expect(["example", "control"]).toContain(pdoc.condition);
     expect(["cup", "bike"]).toContain(pdoc.problem);
+    // Balanced assignment: the cell is the one the shared counter's slot maps to.
+    expect(pdoc.assignment_method).toBe("counter");
+    expect(Number.isInteger(pdoc.assignment_index)).toBe(true);
+    expect(await page.evaluate((i) => window.__cellFor(i), pdoc.assignment_index)).toEqual([pdoc.condition, pdoc.problem]);
     expect(pdoc.prolific_pid).toBe("robot123");
     expect(pdoc.n_trials).toBeGreaterThanOrEqual(10);
     expect(typeof pdoc.full_data).toBe("string");
@@ -224,8 +230,12 @@ test.describe("experiment", () => {
     const docs = (chunks.body.documents || []).map((d) => decodeFields(d.fields));
     expect([p.condition, p.problem]).toEqual(["example", "bike"]);
     expect(docs.length).toBe(Math.ceil(p.n_trials / 5));
+    // Every trial the browser recorded is in some chunk. (trial_index can skip a number where a
+    // conditional part of the timeline is skipped, e.g. the other condition's initial phase.)
     const indices = docs.flatMap((d) => d.trials).map((t) => t.trial_index).sort((a, b) => a - b);
-    expect(indices).toEqual([...Array(p.n_trials).keys()]);
+    const recorded = await page.evaluate(() => window.__saver.allTrials.map((t) => t.trial_index));
+    expect(indices).toEqual(recorded.sort((a, b) => a - b));
+    expect(indices.length).toBe(p.n_trials);
   });
 
   test("phases end by themselves when time runs out, saving the sheet in progress", async ({ page }) => {
@@ -250,8 +260,10 @@ test.describe("experiment", () => {
     const chunks = await fsGet(`experiments/${EXPERIMENT_ID}/participants/${uid}/trials?pageSize=500`);
     const trials = (chunks.body.documents || []).map((d) => decodeFields(d.fields)).flatMap((d) => d.trials);
     const byPhase = (phase) => trials.filter((t) => t.task === "concept_sheet" && t.phase === phase);
-    expect(trials[0].condition).toBe("control");
-    expect(trials[0].problem).toBe("cup");
+    // The consent row is saved before assignment; every row from the assignment on has the cell.
+    const fromAssignment = trials.slice(trials.findIndex((t) => t.task === "assignment"));
+    expect(fromAssignment.every((t) => t.condition === "control" && t.problem === "cup")).toBe(true);
+    expect(fromAssignment[0].assignment_method).toBe("forced_test");
     expect(byPhase("initial").map((t) => [t.end_reason, t.empty])).toEqual([["time_up", true]]);
     expect(byPhase("practice").map((t) => [t.end_reason, t.empty])).toEqual([["time_up", true]]);
     for (const task of ["intro_idea_generation", "intro_brainstorming"]) {
@@ -265,6 +277,36 @@ test.describe("experiment", () => {
     expect(last[0].empty).toBe(false);
     expect(last[0].n_strokes).toBe(1);
     expect(last[0].description).toBe("Unfinished idea");
+  });
+
+  test("the shared counter gives every block of four participants all four cells", async ({ browser }) => {
+    test.skip(!EMULATOR, "needs the Firestore emulator");
+    test.setTimeout(120000);
+    // Eight participants in a row, each in a fresh browser (a new anonymous uid). Other tests
+    // also use the counter, but eight consecutive slots always contain one whole block.
+    const got = [];
+    for (let i = 0; i < 8; i++) {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      await page.goto("http://localhost:8017/?emulator=1");
+      await page.waitForFunction(() => window.__saver && window.__saver.docId);
+      await page.getByRole("button", { name: "I agree to participate" }).click();
+      await page.locator("#jspsych-instructions-next").waitFor();   // assignment done
+      await page.evaluate(() => window.__saver._settle());
+      const docId = await page.evaluate(() => window.__saver.docId);
+      const pdoc = decodeFields((await fsGet(`experiments/${EXPERIMENT_ID}/participants/${docId}`)).body.fields);
+      expect(pdoc.assignment_method).toBe("counter");
+      got.push({ index: pdoc.assignment_index, cell: pdoc.condition + "/" + pdoc.problem,
+                 expected: (await page.evaluate((n) => window.__cellFor(n), pdoc.assignment_index)).join("/") });
+      await context.close();
+    }
+    const indices = got.map((g) => g.index);
+    expect(new Set(indices).size).toBe(8);                          // no slot handed out twice
+    expect(Math.max(...indices) - Math.min(...indices)).toBe(7);    // consecutive slots
+    for (const g of got) expect(g.cell).toBe(g.expected);
+    const start = Math.ceil(Math.min(...indices) / 4) * 4;          // first whole block
+    const block = got.filter((g) => g.index >= start && g.index < start + 4).map((g) => g.cell);
+    expect(new Set(block)).toEqual(new Set(["example/cup", "example/bike", "control/cup", "control/bike"]));
   });
 
   test("declining consent ends the study without a thank-you-for-your-data message", async ({ page }) => {
@@ -430,6 +472,16 @@ test.describe("experiment", () => {
         fb.setDoc(fb.doc(s.db, "experiments", s.opts.experiment_id, "participants", s.uid), { sneaky: true }));
       await attempt("another browser's run id", () =>
         fb.setDoc(fb.doc(s.db, "experiments", s.opts.experiment_id, "participants", "someone-else-abcd1234"), { sneaky: true }));
+      // The assignment counter: readable, and movable forward by exactly one, nothing else.
+      const counter = fb.doc(s.db, "experiments", s.opts.experiment_id, "assignment", "counter");
+      await attempt("counter: take a slot (should be allowed)", () => s.nextAssignmentIndex().then((i) => { if (i === null) throw new Error("no slot"); }));
+      let n = null;
+      await attempt("counter: read (should be allowed)", async () => { n = (await fb.getDoc(counter)).data().n; });
+      await attempt("counter: jump ahead", () => fb.setDoc(counter, { n: n + 5 }));
+      await attempt("counter: move back", () => fb.setDoc(counter, { n: n - 1 }));
+      await attempt("counter: extra field", () => fb.setDoc(counter, { n: n + 1, note: "x" }));
+      await attempt("counter: non-integer", () => fb.setDoc(counter, { n: n + 0.5 }));
+      await attempt("counter: another document", () => fb.setDoc(fb.doc(s.db, "experiments", s.opts.experiment_id, "assignment", "other"), { n: 1 }));
       return out;
     });
 
@@ -441,6 +493,11 @@ test.describe("experiment", () => {
     expect(results["own chunk (should be allowed)"]).toBe("allowed");
     expect(results["participant doc without the run suffix"]).toBe("permission-denied");
     expect(results["another browser's run id"]).toBe("permission-denied");
+    expect(results["counter: take a slot (should be allowed)"]).toBe("allowed");
+    expect(results["counter: read (should be allowed)"]).toBe("allowed");
+    for (const k of ["counter: jump ahead", "counter: move back", "counter: extra field", "counter: non-integer", "counter: another document"]) {
+      expect(results[k], k).toBe("permission-denied");
+    }
   });
 
   test("uncaught errors are logged to the errors collection", async ({ page }) => {
