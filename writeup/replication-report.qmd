@@ -660,6 +660,10 @@ belong here even if they seem minor, together with the reason.
 
 ## Results
 
+In pilot B, 1 participant returned (did not complete) the study. All 5 participants that sucessfully completed the study seemed to comprehend the task at hand,
+we did not receive any messages asking for clarification. Participants took 20-45 minutes to complete the study. These results did not indicate any problems with
+our experimental design, so we did not make any changes to the design based on this pilot.
+
 ### Data preparation
 
 ::: {.callout-tip icon=false}
