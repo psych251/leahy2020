@@ -344,7 +344,7 @@ bind_rows(
 
 ## Introduction
 
-My research is surrounding the design process (often specific to visual design) and design methodology for technology. Therefore, I thought of this paper, which explores the effects of using initial examples on design fixation. I recreated the experiment testing the authors’ first hypothesis: “Providing Examples Leads to More Fixation.” The stimuli in this experiment was to provide participants with an initial design. The control group must come up with their own initial design. Participants are given one of two design problems: either to design a no-spill cup, or a bike rack. My experimental design is a shortened form of the original design in order to preserve resources. Afterwards, each participant’s concept sets were scored by an independent coder (blind to the study hypothesis) on “overall similarity to the initial concept in the set.” I preregistered a 2x2 ANOVA to compare fixation scores across both design problems. I expect properly transforming this workshop-style experiment into a web application to be a bit challenging. I’m thinking an interesting possible extension would be to expand the population of this study to expert designers to see if that changes the results.
+My research is surrounding the design process (often specific to visual design) and design methodology for technology. Therefore, I thought of this paper, which explores the effects of using initial examples on design fixation. Design fixation is a bias that occurs when designers become attached to a limited set of ideas early on in the design process. I recreated the experiment testing the authors’ first hypothesis: “Providing Examples Leads to More Fixation.” The stimuli in this experiment was to provide participants with an initial design (a simple sketch with a short text description). The control group must come up with their own initial design. Participants are given one of two design problems: either to design a no-spill cup, or a bike rack. The are asked to draw simple sketches of their ideas and provide short descriptions of their designs. My experimental design is a shortened form of the original design in order to preserve resources. Afterwards, each participant’s concept sets were scored by an independent coder (blind to the study hypothesis) on “overall similarity to the initial concept in the set.” I preregistered a 2x2 ANOVA to compare fixation scores across both design problems. I expect properly transforming this workshop-style experiment into a web application to be a bit challenging. I’m thinking an interesting possible extension would be to expand the population of this study to expert designers to see if that changes the results.
 
 ## Methods
 
@@ -422,9 +422,9 @@ Several phases of this study required teaching best practices to the pariticipan
 
 #### 6. Coding materials
 
-After the experiemnt, the participants design ideas were coded on their level of fixation by independent coders. According to the paper, coders were blind to condition ans asked to consider "overall similarity to the initial concept in the set" as similar or not similar. We use to exact save wording.
+After the experiemnt, the participants design ideas were coded on their level of fixation by independent coders. According to the paper, coders were blind to condition ans asked to consider "overall similarity to the initial concept in the set" as similar or not similar. We use to exact same wording.
 
-Note I do not know exactly how I will perform coding at this point. Either I will do it myself or perhaps recruit collegues to help out. 
+I recruited a collegue that was blind to the hypothesis to code the participants' design ideas for me.
 
 ### Procedure
 
@@ -527,7 +527,7 @@ Ratings were "similar" or "not similar".
 
 These coders were blind to the study hypothesis and concepts were presented in a random order. 
 
-In order to preserve resources, I have coded the concept sheets myself, blind to condition.
+In order to preserve resources, I have asked a colleague who was blind to the hypothesis and condition to code the concept sheets.
 
 ### Differences from the original study
 
