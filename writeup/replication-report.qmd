@@ -88,7 +88,7 @@ original <- list(
 ## Project links
 
 - **Original paper:** Leahy, Keelin, et al. "Design fixation from initial examples: Provided versus self-generated ideas." Journal of Mechanical Design 142.10 (2020): 101402. <https://doi.org/10.1115/1.4046446>
-- **Preregistration:** [OSF registration](https://osf.io/XXXXX) *(registered YYYY-MM-DD, before final data collection)*
+- **Preregistration:** [OSF registration](https://osf.io/gqd9b) *(registered 2026-11-04, before final data collection)*
 - **Live experiment:** <https://psych251.github.io/leahy2020/> (take the study exactly as participants did)
 - **Repository:** <https://github.com/psych251/leahy2020> (experiment code, data, and this report)
 :::
@@ -651,12 +651,7 @@ if (nrow(demo) > 0) {
 
 #### Deviations from the preregistered plan
 
-::: {.callout-tip icon=false}
-## Guidance
-
-Any deviation from the preregistered plan above, or "None". Changes made after seeing data
-belong here even if they seem minor, together with the reason.
-:::
+None
 
 ## Results
 
@@ -674,7 +669,15 @@ analysis code under Key statistics (open "Show the analysis code"). Describe any
 the data beyond that.
 :::
 
+Fixation was scored by a colleague of mine that was blind to the hypothesis of this experiment. She has general design expertise, but no expertise in mechanical
+design. She rated each concept sheet on "overall similarity to the initial concept in the set" as similar or not similar. These ratings were then agragated as
+the ratio of the number of concepts rated as similar over the number of total rated concepts for each cell.
+
 ### Confirmatory analysis
+
+We performed a 2x2 ANOVA test in order to assess fixation across source and design problem. In the below table, we report the cell means and standard Deviations
+across these variables. The main effect we were attempting to replicate, fixation source, saw an effect in the same direction as the original experiment, with
+an F-value of 5.96 and p-value of 0.021. However the factor of design problem found no effect, which is not consistent with the original experiment. 
 
 ```{r}
 #| label: confirmatory
@@ -706,6 +709,10 @@ does it include the original estimate? A significant result much smaller than th
 a non-significant result whose interval still includes the original effect, are both
 informative and should be reported as such (Experimentology §3.2).
 :::
+
+The difference in fixation between self-generated versus provided initial examples was found to be significant, and this difference was greater than in the
+original experiment (0.28 in the replication, 0.08 in the original). The 95% CI of [0.03, 0.53] excludes 0 and and includes the original estimate of 0.08,
+which indicates that this experiment has successfully replicated the original result.
 
 ```{r}
 #| label: comparison
@@ -774,6 +781,9 @@ both panels, label which is which, and cite the source of the original values or
 caption. If the original reported no variability, say so rather than leaving it out silently.
 :::
 
+Below we compare the statistics in our replication to that in the original experiment. We can see that the original difference was smaller than in the 
+replication, but the CIs on the results in the replication are much larger.
+
 ```{r}
 #| label: fig-comparison
 #| eval: !expr have_scores
@@ -791,6 +801,10 @@ comparison_plot(Original = original$groups, `Phase 1: replication` = group_summa
 Any follow-up analyses (optional). Label them clearly as exploratory: they were not planned, so
 they generate hypotheses rather than test them.
 :::
+
+As an exploratory measure, we also assess the fluency of the design ideas participants came up with during this study. Fluency is the number of distict concepts
+the the designer comes up with during the design process. In this replication, we find that participants only come up with around 2 ideas, which is fewer 
+than in the original experiment. This makes each participant's fixation ratio coarse (ofteh 0, 0.5, or 1).
 
 ```{r}
 #| label: exploratory-fluency
@@ -834,6 +848,11 @@ that judgment on the replication assessment above: the size of the effect relati
 original, not just the p value.
 :::
 
+This experiment successfully replicates Hypothesis 1 of Leahy et al.'s original experiment exploring the roel of inital examples in design fixation. We found
+that the key statistic of difference in design fixation between the two inital example sources (self-generated - provided) came out in the original's direction
+and was significant. This statistic excludes 0 and includes the original estimate. However, the esimate found in this replication is very imprecise. Due to our
+large confidence interval, the difference in fixation could range from trivially small to very large. 
+
 ### Commentary
 
 ::: {.callout-tip icon=false}
@@ -844,6 +863,18 @@ replication means, for example whether the differences between your study and th
 definitely, plausibly, or unlikely to be moderators of the result; and (c) any objections or
 challenges raised by you or the original authors.
 :::
+
+In our exploratory analysis, we found that participants in this study had low fluency in their design ideas, leading to many 0/1 fixation ratios that made the 
+data noisy. Our large d (0.80) is a reflection of this and also our small sample size. This low fluency may be due to the online format of our experimental
+design, and we attempt to improve this in our extension.
+
+Althoug hwe did replicate the original experiment, there are still multiple difference that could have had an impact on our results. First, as mentioned above,
+the online format of the replication in comparison to the original experiment's workshop format plausibly had on an impact on the participant's experience and
+engagement in the study. Along with this, using a single coder to rate similarity of design concepts, rather than using 2 indipendent codingers may have had an
+impact on the reliability of coding results.
+
+Along with coding reliability, the small N in this experiment acts as a limitation against its reliability. Similarly, the original problem's effect did not 
+reproduce.
 
 # Phase 2: Extension
 
