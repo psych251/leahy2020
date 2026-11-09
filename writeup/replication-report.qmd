@@ -898,7 +898,7 @@ Follow the Extension guidelines page on Canvas. In brief:
 State your track on the line below, and delete the others.
 :::
 
-**Track:** Best-practices upgrade / Best-practices rescue / Scientific extension (approved at Milestone 3)
+**Track:** Best-practices upgrade
 
 ## Rationale
 
@@ -911,6 +911,13 @@ Phase 1 estimate least precise or least trustworthy, and how will the changes im
 scientific extension: what question does the added condition answer, and why does it follow from
 the original finding?
 :::
+
+In phase 1, we say instances of low quyality data from participants that indiciated that they possibly did not understand
+their design task. In order to improve data quality, we add comprehension checks that confirm that participants understand
+their provided design task to the experimental design. Phase 1 was also limited by coding being done only by a single colleague.
+Considering how aribtrary the coding process was in this experiment, I believe this could have had an effect on the 
+trustworthiness of the data. In order to improve this, I use two independent coders blind to the hypothesis and break ties
+using a third. 
 
 ## Changes from Phase 1
 
@@ -926,9 +933,8 @@ demo; replace them with yours.
 
 | # | Category | Phase 1 | Phase 2 | Why |
 |---|---|---|---|---|
-| 1 | Sample | 27 analysed participants | 300 analysed participants (150 per frame) | Phase 1's interval was too wide to distinguish the original effect from a much smaller one. |
-| 2 | Checks | No comprehension check | After the choice, participants say how many people are at risk (600) | Confirms participants read the scenario; failures are reported, and excluded only if preregistered. |
-| 3 | Exploratory measure | None | At the end: "How confident are you in your choice?" (1–7) | Exploratory only; collected after every confirmatory measure. |
+| 1 | Measurement | Once coder blind to the hypothesis | Two independent coders blind to the hypothesis with a third, independent coder to resolve disagreements | To improve the trustworthiness of data labels |
+| 2 | Checks | No comprehension check | After being shown the design task, participants say what they have to design | Confirms participants read the task; failures are reported, and excluded. |
 
 Everything not listed above is identical to Phase 1.
 
@@ -947,7 +953,7 @@ have it and the original's otherwise.
 
 ```{r}
 #| label: phase2-power
-phase2_n_per_group <- 150   # planned analysed participants per fixation-source group in Phase 2
+phase2_n_per_group <- 18   # planned analysed participants per fixation-source group in Phase 2
 
 p1_stats <- if (have_data) key_stats(phase1)
 basis <- if (!is.null(p1_stats)) {
@@ -983,6 +989,10 @@ tibble(
   knitr::kable(caption = sprintf("Power of the Phase 2 key test at %d per fixation-source group, two-sided alpha = .05 (two-group approximation).", phase2_n_per_group))
 ```
 
+Because of resource constraints, I did not follow a power analysis and instead recruited **36 participants** for this phase. However, 
+due the to modifications i am making to this phase, I expect the esimate to be closer in value to the original experiment's estimate. 
+Because my sample is approximately the same size, I expect precision to improve only mildly.
+
 ## Analysis plan
 
 ::: {.callout-tip icon=false}
@@ -997,6 +1007,11 @@ exclusion rule (unchanged unless it is in the Changes table) and list any explor
 Run Phase 2 under a new `EXPERIMENT.id` in `experiment.js` (for example `smith2016-phase2`) and
 set `experiment_id_phase2` at the top of this file to match, so the two phases' data never mix.
 :::
+
+I will perform the same 2x2 ANOVA on the fixation ratio in phase 2 usign phase 2 data only (not a pooled estimate). The only differences win analysis will be that coding the 
+participants design ideas will be performed by 2 independent coders, with ties reconciled by a thrid independent coder. I will also report percent
+agreement and Cohen's κ. The only other change I will make is excluding participants that do not pass the comprehension check in perform the rest of
+analysis. The rest of the analysis will be the same as in Phase 1.
 
 ## Results
 
