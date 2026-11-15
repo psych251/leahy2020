@@ -651,7 +651,8 @@ if (nrow(demo) > 0) {
 
 #### Deviations from the preregistered plan
 
-None
+We recruited 36 participants that met the stopping rule, but only 35 were analysed because our coder indiciated
+that all designs produced by one participant were incoherent. 
 
 ## Results
 
@@ -844,10 +845,10 @@ that judgment on the replication assessment above: the size of the effect relati
 original, not just the p value.
 :::
 
-This experiment successfully replicates Hypothesis 1 of Leahy et al.'s original experiment exploring the roel of inital examples in design fixation. We found
+This experiment successfully replicates Hypothesis 1 of Leahy et al.'s original experiment exploring the role of inital examples in design fixation. We found
 that the key statistic of difference in design fixation between the two inital example sources (self-generated - provided) came out in the original's direction
-and was significant. This statistic excludes 0 and includes the original estimate. However, the esimate found in this replication is very imprecise. Due to our
-large confidence interval, the difference in fixation could range from trivially small to very large. 
+and was significant. This statistic excludes 0 and includes the original estimate. However, the esimate found in this replication is very imprecise and likely
+an overestimation. Due to our small sample size (17 participants per group) and large confidence interval, the difference in fixation could range from trivially small to very large. 
 
 ### Commentary
 
