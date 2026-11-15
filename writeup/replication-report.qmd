@@ -541,7 +541,7 @@ In order to preserve resources, I have asked a colleague who was blind to the hy
 | Phase timings | Everyone is given 6 / 3 / 3 / 3 / 30 min for each of the original experiment sections. |  / 2 / 2 / 3 / 25 min maximums per original section; participants can move on early if they'd like. | Yes. I have shortened their expose to the inital example and given them less time to digest and understand all tasks. |
 | Revisiting sheets | Not stated if the participants can revisit their concept sheets. | Any sheet can be edited at any time. | Maybe a small effect if people can go back an differentiate earlier concepts. |
 | Access to the initial concept during brainstorming | Not stated if the users have access to the initial example during brainstorming. | Not visible after it is intially shown to pariticpants. | Yes. If the participant can continuously look at their intial exaample, they may fixate more. |
-| Coding | Coding	Two coders (a senior undergraduate and a master's student), third coder for disagreements. | Potentially just me, unless I can get help. | Yes, I may be unreliable because I am not blind to the experiment's hypothesis. |
+| Coding | Coding	Two coders (a senior undergraduate and a master's student), third coder for disagreements. | A colleague that was blind to the hypothesis coded. | Yes, using a single coder may produce unreliable results. |
 
 ### Methods addendum (post data collection)
 
@@ -654,10 +654,6 @@ if (nrow(demo) > 0) {
 None
 
 ## Results
-
-In pilot B, 1 participant returned (did not complete) the study. All 5 participants that sucessfully completed the study seemed to comprehend the task at hand,
-we did not receive any messages asking for clarification. Participants took 20-45 minutes to complete the study. These results did not indicate any problems with
-our experimental design, so we did not make any changes to the design based on this pilot.
 
 ### Data preparation
 
