@@ -19,9 +19,18 @@
   It only works on your own computer (localhost, or opened from disk). GitHub Pages publishes
   everything in this repo, so the copy on the live site shows a notice and loads no data.
 
-  Ratings are kept in this browser per coder and downloaded as ratings_<coder>.csv
-  (participant_id, sheet_number, similar, flag, coder). The reconciled ratings go in
-  data/coded/<experiment>/ratings.csv, which writeup/replication-report.qmd reads.
+  Two rating scales:
+    binary  (Phase 1): similar / not similar. Downloads ratings_<coder>.csv with columns
+            participant_id, sheet_number, similar, flag, coder.
+    graded  (Phase 2): overall similarity 1-5. Downloads ratings_<coder>.csv with columns
+            participant_id, sheet_number, similarity, flag, coder.
+  The scale is graded for the experiments in GRADED_EXPERIMENTS below, binary otherwise;
+  &scale=binary or &scale=graded overrides that.
+
+  Ratings are kept in this browser per coder. Put each coder's download in
+  data/coded/<experiment>/; for Phase 2, scripts/reconcile-ratings.js combines them into
+  ratings.csv (the mean of the two coders), which writeup/replication-report.qmd reads. For Phase 1 the reconciled ratings
+  were put in ratings.csv directly.
 -->
 <html lang="en">
 <head>
@@ -63,6 +72,10 @@
   .choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
   .choices button[aria-pressed="true"][data-v="1"] { background: var(--similar); border-color: var(--similar); color: #fff; }
   .choices button[aria-pressed="true"][data-v="0"] { background: var(--not); border-color: var(--not); color: #fff; }
+  .choices button.grade { min-width: 2.6em; font-variant-numeric: tabular-nums; }
+  .choices button.grade[aria-pressed="true"] { background: var(--similar); border-color: var(--similar); color: #fff; }
+  .anchor { font-size: 12px; color: var(--muted); }
+  .anchors { margin: 6px 0 0; padding-left: 1.2em; font-size: 14px; }
   .choices label { margin-left: auto; font-size: 13px; color: var(--flag); }
   @media (max-width: 760px) { .row { grid-template-columns: 1fr; } .initial { position: static; } }
 </style>
@@ -80,9 +93,11 @@
 </header>
 <main>
   <p class="intro">For each set, compare every concept on the right with that set's <strong>initial concept</strong>
-  on the left, and rate its <em>overall similarity to the initial concept in the set</em>: similar or not similar.
+  on the left, and rate its <em>overall similarity to the initial concept in the set</em>:
+  <span id="scale-text">similar or not similar</span>.
   Use the flag for a concept that is illegible or uninterpretable. Your ratings are kept in this browser as you go;
   download them when you finish (and now and then, as a backup).</p>
+  <ol id="anchors" class="anchors" hidden></ol>
   <p id="status">Loading…</p>
   <div id="picker">
     <p>Choose the exported <code>participants.csv</code> and <code>trials.csv</code> for this experiment
@@ -105,9 +120,31 @@
     return;
   }
   const params = new URLSearchParams(location.search);
-  const experimentId = params.get("experiment") || "leahy2020-pilot-a";
+  const experimentId = params.get("experiment") || "leahy2020-phase2";
   const seed = params.get("seed") || "1";
-  document.getElementById("title").textContent = "Similarity coding: " + experimentId;
+  // Experiments coded on the graded 1-5 scale (Phase 2); the others are similar / not similar.
+  const GRADED_EXPERIMENTS = ["leahy2020-phase2"];
+  const graded = params.get("scale") ? params.get("scale") === "graded" : GRADED_EXPERIMENTS.includes(experimentId);
+  // Anchors for the 1-5 scale. Agree on what they mean in the calibration session, and keep this
+  // text and the report's description of the scale the same.
+  const GRADES = [
+    [1, "Not at all similar"],
+    [2, "Slightly similar"],
+    [3, "Moderately similar"],
+    [4, "Very similar"],
+    [5, "Nearly the same concept"],
+  ];
+  const FIELD = graded ? "similarity" : "similar";   // column name in the downloaded CSV
+  const rated = (r) => !!r && r[FIELD] !== null && r[FIELD] !== undefined;
+  if (graded) {
+    document.getElementById("scale-text").textContent = "a rating from 1 to 5";
+    const list = document.getElementById("anchors");
+    for (const [v, text] of GRADES) list.append(Object.assign(document.createElement("li"), { textContent: v + " = " + text }));
+    list.style.listStyle = "none";
+    list.hidden = false;
+  }
+  document.getElementById("title").textContent = "Similarity coding: " + experimentId +
+    (graded ? " (1-5)" : "");
   document.title = "Similarity coding: " + experimentId;
 
   // The design problems and example sketches, as in experiment.js (Leahy et al., 2020, Materials).
@@ -185,7 +222,7 @@
 
   // ---- ratings, kept per coder in this browser ----------------------------------------
   const coderEl = document.getElementById("coder");
-  const storeKey = () => "coding:" + experimentId + ":" + coderEl.value.trim();
+  const storeKey = () => "coding:" + experimentId + (graded ? ":graded" : "") + ":" + coderEl.value.trim();
   const keyOf = (pid, n) => pid + "|" + n;
   let ratings = {};
   let sets = [];
@@ -219,20 +256,29 @@
         const card = el("div", { class: "concept", "data-key": k },
           el("div", { class: "label" }, "Concept " + (j + 1) + " of " + s.concepts.length), sketch(c.sketch),
           el("div", { class: "desc" }, c.description || "(no description)"));
-        const yes = el("button", { type: "button", "data-v": "1", "aria-pressed": "false" }, "Similar");
-        const no = el("button", { type: "button", "data-v": "0", "aria-pressed": "false" }, "Not similar");
+        // Binary: Similar (1) / Not similar (0). Graded: 1-5. Clicking the chosen value again clears it.
+        const options = graded
+          ? GRADES.map(([v, text]) => el("button", { type: "button", class: "grade", "data-v": String(v), "aria-pressed": "false", title: text }, String(v)))
+          : [el("button", { type: "button", "data-v": "1", "aria-pressed": "false" }, "Similar"),
+             el("button", { type: "button", "data-v": "0", "aria-pressed": "false" }, "Not similar")];
         const flag = el("input", { type: "checkbox" });
-        card.append(el("div", { class: "choices" }, yes, no, el("label", {}, flag, " Illegible / uninterpretable")));
+        const row = el("div", { class: "choices" });
+        if (graded) row.append(el("span", { class: "anchor" }, "1 = not at all similar"));
+        row.append(...options);
+        if (graded) row.append(el("span", { class: "anchor" }, "5 = nearly the same"));
+        row.append(el("label", {}, flag, " Illegible / uninterpretable"));
+        card.append(row);
         const paint = () => {
           const r = ratings[k] || {};
-          yes.setAttribute("aria-pressed", String(r.similar === 1));
-          no.setAttribute("aria-pressed", String(r.similar === 0));
+          for (const b of options) b.setAttribute("aria-pressed", String(rated(r) && r[FIELD] === Number(b.dataset.v)));
           flag.checked = !!r.flag;
-          card.classList.toggle("done", r.similar === 0 || r.similar === 1);
+          card.classList.toggle("done", rated(r));
         };
-        const set = (patch) => { ratings[k] = Object.assign({ similar: null, flag: false }, ratings[k], patch); saveRatings(); paint(); progress(); };
-        yes.onclick = () => set({ similar: ratings[k] && ratings[k].similar === 1 ? null : 1 });
-        no.onclick = () => set({ similar: ratings[k] && ratings[k].similar === 0 ? null : 0 });
+        const set = (patch) => { ratings[k] = Object.assign({ [FIELD]: null, flag: false }, ratings[k], patch); saveRatings(); paint(); progress(); };
+        for (const b of options) {
+          const v = Number(b.dataset.v);
+          b.onclick = () => set({ [FIELD]: ratings[k] && ratings[k][FIELD] === v ? null : v });
+        }
         flag.onchange = () => set({ flag: flag.checked });
         card._paint = paint;
         paint();
@@ -249,7 +295,7 @@
   function repaint() { document.querySelectorAll(".concept").forEach((c) => c._paint()); progress(); }
   function progress() {
     const keys = new Set(sets.flatMap((s) => s.concepts.map((c) => keyOf(s.participant_id, c.sheet_number))));
-    const done = [...keys].filter((k) => ratings[k] && (ratings[k].similar === 0 || ratings[k].similar === 1)).length;
+    const done = [...keys].filter((k) => rated(ratings[k])).length;
     document.getElementById("progress").textContent = done + " of " + keys.size + " rated";
   }
 
@@ -307,10 +353,10 @@
   document.getElementById("download").onclick = () => {
     const coder = coderEl.value.trim();
     if (!coder) { alert("Enter your initials in the Coder box first."); coderEl.focus(); return; }
-    const lines = ["participant_id,sheet_number,similar,flag,coder"];
+    const lines = ["participant_id,sheet_number," + FIELD + ",flag,coder"];
     for (const s of sets) for (const c of s.concepts) {
       const r = ratings[keyOf(s.participant_id, c.sheet_number)] || {};
-      lines.push([s.participant_id, c.sheet_number, r.similar === 0 || r.similar === 1 ? r.similar : "", r.flag ? 1 : 0, coder].join(","));
+      lines.push([s.participant_id, c.sheet_number, rated(r) ? r[FIELD] : "", r.flag ? 1 : 0, coder].join(","));
     }
     const a = el("a", { href: URL.createObjectURL(new Blob([lines.join("\n") + "\n"], { type: "text/csv" })),
                         download: "ratings_" + coder.replace(/[^A-Za-z0-9_-]/g, "") + ".csv" });
@@ -321,9 +367,15 @@
   document.getElementById("load").onclick = () => ratingsFile.click();
   ratingsFile.onchange = async () => {
     const rows = parseCsv(await ratingsFile.files[0].text());
+    if (rows.length && !(FIELD in rows[0])) {
+      alert("This file has no '" + FIELD + "' column, so it was coded on the other scale. Nothing was loaded.");
+      ratingsFile.value = "";
+      return;
+    }
+    const allowed = graded ? ["1", "2", "3", "4", "5"] : ["0", "1"];
     for (const r of rows) {
       ratings[keyOf(r.participant_id, r.sheet_number)] =
-        { similar: r.similar === "1" ? 1 : r.similar === "0" ? 0 : null, flag: r.flag === "1" };
+        { [FIELD]: allowed.includes(r[FIELD]) ? Number(r[FIELD]) : null, flag: r.flag === "1" };
     }
     saveRatings(); repaint(); ratingsFile.value = "";
   };

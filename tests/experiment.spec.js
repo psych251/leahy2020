@@ -14,7 +14,7 @@ const { test, expect, devices } = require("@playwright/test");
 
 const EMULATOR = process.env.EMULATOR === "1" || !!process.env.FIRESTORE_EMULATOR_HOST;
 const PROJECT = "demo-psych251";
-const EXPERIMENT_ID = "leahy2020-final";
+const EXPERIMENT_ID = "leahy2020-phase2";
 const FS = `http://localhost:8080/v1/projects/${PROJECT}/databases/(default)/documents`;
 
 // Draw one stroke across the sketch box of the current concept sheet.
@@ -57,6 +57,7 @@ async function runThroughExperiment(page, { stopBeforeFinish = false } = {}) {
   await page.locator("#jspsych-instructions-next").click();
   // 3. initial phase: the example (example condition) or an initial concept sheet (control)
   await page.locator(".example-sketch, #concept-canvas").first().waitFor();
+  const isCup = (await page.locator(".design-problem").first().innerText()).includes("coffee cup");
   if (await page.locator(".example-sketch").count()) {
     await page.getByRole("button", { name: "Continue" }).click();
   } else {
@@ -64,6 +65,10 @@ async function runThroughExperiment(page, { stopBeforeFinish = false } = {}) {
     await page.locator("#concept-description").fill("Robot initial cup: a lid that seals with a twist.");
     await finishPhase(page);
   }
+  // 3b. attention check: answer with the problem that was shown
+  await page.getByRole("heading", { name: "Quick question" }).waitFor();
+  await expect(page.locator("#jspsych-html-button-response-btngroup button")).toHaveCount(4);
+  await page.getByRole("button", { name: isCup ? "A spill-proof coffee cup" : "A car-mounted bicycle rack" }).click();
   // 4-5. introductions to idea generation and brainstorming
   await page.getByRole("heading", { name: "Idea generation" }).waitFor();
   await page.getByRole("button", { name: "Continue" }).click();
@@ -97,7 +102,7 @@ async function runThroughExperiment(page, { stopBeforeFinish = false } = {}) {
   // 8. debrief: every step but the debrief itself is done
   await page.getByRole("heading", { name: "Debrief" }).waitFor();
   const width = await page.locator("#jspsych-progressbar-inner").evaluate((el) => parseFloat(el.style.width));
-  expect(width).toBeCloseTo((8 / 9) * 100, 0);
+  expect(width).toBeCloseTo((9 / 10) * 100, 0);
   if (stopBeforeFinish) return;
   await page.getByRole("button", { name: "Finish" }).click();
   await expect(page.getByText("All done")).toBeVisible({ timeout: 30000 });
@@ -211,6 +216,11 @@ test.describe("experiment", () => {
     for (const task of ["intro_idea_generation", "intro_brainstorming"]) {
       expect(trials.find((t) => t.task === task).end_reason).toBe("finished");
     }
+    // Attention check: answered with the assigned problem, options in a recorded random order.
+    const check = trials.find((t) => t.task === "attention_check");
+    expect(check.attention_answer).toBe(pdoc.problem);
+    expect(check.attention_correct).toBe(true);
+    expect(check.attention_options.split(",").sort()).toEqual(["backpack", "bike", "cup", "lamp"]);
 
     // Every trial row must carry the same participant id as its participant document,
     // otherwise trials.csv and participants.csv cannot be joined in the analysis.
@@ -246,7 +256,11 @@ test.describe("experiment", () => {
     await page.getByRole("button", { name: "I agree to participate" }).click();
     await page.locator("#jspsych-instructions-next").click();
     await page.locator("#jspsych-instructions-next").click();
-    // Initial sheet, both introductions and practice all time out untouched.
+    // The initial sheet times out untouched; the attention check has no time limit and is
+    // answered wrongly here (recorded, not corrected).
+    await page.getByRole("heading", { name: "Quick question" }).waitFor({ timeout: 20000 });
+    await page.getByRole("button", { name: "A desk lamp" }).click();
+    // Both introductions and practice time out untouched.
     await page.getByRole("heading", { name: "Design problem" }).waitFor({ timeout: 20000 });
     await page.locator("#jspsych-instructions-next").click();
     await sketch(page);
@@ -265,6 +279,8 @@ test.describe("experiment", () => {
     expect(fromAssignment.every((t) => t.condition === "control" && t.problem === "cup")).toBe(true);
     expect(fromAssignment[0].assignment_method).toBe("forced_test");
     expect(byPhase("initial").map((t) => [t.end_reason, t.empty])).toEqual([["time_up", true]]);
+    const check = trials.find((t) => t.task === "attention_check");
+    expect([check.attention_answer, check.attention_correct]).toEqual(["lamp", false]);
     expect(byPhase("practice").map((t) => [t.end_reason, t.empty])).toEqual([["time_up", true]]);
     for (const task of ["intro_idea_generation", "intro_brainstorming"]) {
       const row = trials.find((t) => t.task === task);

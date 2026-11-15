@@ -3,6 +3,15 @@
  * versus self-generated ideas", Journal of Mechanical Design. Replication of Hypothesis 1
  * (providing an example leads to more fixation), both design problems, as in the original.
  *
+ * PHASE 2 (extension, id "leahy2020-phase2"). Changes from Phase 1, as listed in the report's
+ * "Changes from Phase 1" table; everything else is identical:
+ *   - attention check after the initial phase: "What are you being asked to design?", four
+ *     options in a random order (task "attention_check", `attention_correct`);
+ *   - the brainstorm instructions ask participants to aim for at least 5 concepts;
+ *   - coding (outside this file): graded 1-5 similarity, two coders (coding/index.html,
+ *     scripts/reconcile-ratings.js).
+ *   Phase 1 ran from this file as of commit a448915.
+ *
  * Design summary
  *   IVs:       2 x 2 between subjects, each factor assigned at random:
  *              fixation source (`condition`):
@@ -11,13 +20,14 @@
  *              design problem (`problem`): "cup" (no-spill cup) or "bike" (car bike rack).
  *   DV:        fixation = share of brainstormed concepts that coders rate "similar" to the
  *              participant's initial concept (the example, or their own initial sheet). Coded
- *              afterwards from rows with task "concept_sheet" and phase "brainstorm":
+ *              afterwards from rows with task "concept_sheet" and phase "brainstorm"
+ *              (Phase 2: rated 1-5 for similarity instead of similar / not similar):
  *              fields `sketch` (PNG data URL), `description`, `sheet_number`. Fluency is the
  *              number of non-empty brainstorm sheets (`empty` false). Participants can go back
  *              and edit earlier sheets, so a sheet can have several rows (`revision` 1, 2, ...);
  *              the row with the highest `revision` for each `sheet_number` is the final version.
  *   Structure: consent, welcome, initial phase (3 min: view example / draw initial concept),
- *              intro to idea generation (2 min), intro to brainstorming (2 min), practice
+ *              attention check (Phase 2), intro to idea generation (2 min), intro to brainstorming (2 min), practice
  *              "design a seating device" (3 min), brainstorm the assigned problem (25 min), debrief.
  *              Shorter than the original's 6 / 3 / 3 / 3 / 30 min (Leahy et al., 2020, Fig. 4).
  *              Every phase is a maximum: a countdown shows the time left, the participant can
@@ -28,7 +38,7 @@
  *              cover all four cells. If the counter cannot be reached, the cell is random.
  *              Recorded as `assignment_method` ("counter" | "random_fallback" | "forced_test")
  *              and `assignment_index` (the slot) on the participant document.
- *   Exclusion: not yet decided (see the report's analysis plan). No attention check.
+ *   Exclusion: see the report's analysis plan. Phase 2 adds: failed the attention check.
  */
 
 // ---------------------------------------------------------------------------
@@ -39,7 +49,7 @@ window.TEMPLATE_VERSION = "0.1.0";
 const EXPERIMENT = {
   // Firestore path: experiments/<id>/participants/... Change it when you start a new study
   // so pilot data and real data never mix (e.g. "smith2016-pilot-a", "smith2016-final").
-  id: "leahy2020-final",
+  id: "leahy2020-phase2",
 
   // Trials per Firestore write. 1 = save every trial the moment it finishes (dropouts leave
   // partial data). The free tier allows 20,000 writes/day: with 200 participants x 100 trials
@@ -141,9 +151,9 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
     return;
   }
 
-  // Progress steps: consent, welcome, initial phase, the two introductions, practice, the
-  // brainstorm instructions, brainstorm, debrief.
-  const N_STEPS = 9;
+  // Progress steps: consent, welcome, initial phase, attention check, the two introductions,
+  // practice, the brainstorm instructions, brainstorm, debrief.
+  const N_STEPS = 10;
   let stepsDone = 0;
 
   const jsPsych = initJsPsych({
@@ -516,6 +526,34 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
   };
 
   // -------------------------------------------------------------------------
+  // 3b. Attention check (Phase 2): right after the design problem was shown, the same question in
+  // both conditions, about the problem only (not the example or the initial concept). The
+  // problem is not on screen. Recorded, not corrected: a wrong answer does not stop the study.
+  // -------------------------------------------------------------------------
+  const ATTENTION_OPTIONS = {
+    cup: "A spill-proof coffee cup",
+    bike: "A car-mounted bicycle rack",
+    lamp: "A desk lamp",
+    backpack: "A backpack",
+  };
+  let attentionOrder = null;
+  const attentionCheck = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<div class="lesson"><h2>Quick question</h2>
+       <p>What are you being asked to design in this study?</p></div>`,
+    choices: () => {
+      attentionOrder = jsPsych.randomization.shuffle(Object.keys(ATTENTION_OPTIONS));
+      return attentionOrder.map((k) => ATTENTION_OPTIONS[k]);
+    },
+    data: { task: "attention_check" },
+    on_finish: (data) => {
+      data.attention_options = attentionOrder.join(",");
+      data.attention_answer = attentionOrder[data.response];
+      data.attention_correct = data.attention_answer === assigned.problem;
+    },
+  };
+
+  // -------------------------------------------------------------------------
   // 4. Introduction to idea generation (2 min). Fixation is deliberately not mentioned.
   // -------------------------------------------------------------------------
   const introIdeaGeneration = timedPage(
@@ -580,7 +618,8 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
       `<h2>Design problem</h2>
        ${problemBox()}
        <p>Now create concepts for this design problem using individual brainstorming, or any other
-       method you prefer. Draw and describe each concept on its own sheet. You have up to
+       method you prefer. Draw and describe each concept on its own sheet. Aim for at least 5
+       concepts. You have up to
        ${EXPERIMENT.minutes.brainstorm} minutes; the timer starts when you continue.</p>`,
     ],
     show_clickable_nav: true,
@@ -614,6 +653,7 @@ const FORCED_PROBLEM = USE_EMULATOR ? URL_PARAMS.get("problem") : null;
     assignment,
     instructions,
     initialPhase,
+    attentionCheck,
     introIdeaGeneration,
     introBrainstorming,
     practice,
